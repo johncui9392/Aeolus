@@ -11,7 +11,7 @@ class BtcRealtime(QObject):
         super().__init__()
         self.running = False
         self.interval = 5  # 5秒刷新间隔
-        self.instrument = "GC.CMX"  # 这里可能需要替换为比特币的代码
+        self.instrument = "BTC.CME"  # 这里可能需要替换为比特币的代码
         self.fields = "close,chg,pct_chg"  # 需要获取的字段
         self._thread = QThread()
         self.moveToThread(self._thread)
@@ -50,9 +50,25 @@ class BtcRealtime(QObject):
                 return
                     
             w.start()  # 直接启动WindPy连接
-            
-            end_time = datetime.datetime.now()-datetime.timedelta(hours=12)
-            start_time = end_time - datetime.timedelta(hours=60)
+
+            import pytz
+            # 获取当前时间
+            now = datetime.datetime.now()
+            # 定义纽约时区
+            eastern = pytz.timezone('US/Eastern')
+            # 本地化当前时间并判断是否为夏令时
+            is_dst = eastern.localize(now, is_dst=None).dst() != datetime.timedelta(0)
+
+            # 根据夏令时调整时差
+            if is_dst:
+                # 夏令时，时差 12 小时
+                time_diff = 12
+            else:
+                # 冬令时，时差 13 小时
+                time_diff = 13
+
+            end_time = datetime.datetime.now() - datetime.timedelta(hours=time_diff)
+            start_time = end_time - datetime.timedelta(hours=120)
             
             # Ensure WindPy is connected
             if not w.isconnected():

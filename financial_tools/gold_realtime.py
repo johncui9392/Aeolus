@@ -50,9 +50,25 @@ class GoldRealtime(QObject):
                 return
                     
             w.start()  # 直接启动WindPy连接
-            
-            end_time = datetime.datetime.now()-datetime.timedelta(hours=12)
-            start_time = end_time - datetime.timedelta(hours=60)
+
+            import pytz
+            # 获取当前时间
+            now = datetime.datetime.now()
+            # 定义纽约时区
+            eastern = pytz.timezone('US/Eastern')
+            # 本地化当前时间并判断是否为夏令时
+            is_dst = eastern.localize(now, is_dst=None).dst() != datetime.timedelta(0)
+
+            # 根据夏令时调整时差
+            if is_dst:
+                # 夏令时，纽约（UTC-4）和北京（UTC+8）时差为 12 小时
+                time_diff = 12
+            else:
+                # 冬令时，纽约（UTC-5）和北京（UTC+8）时差为 13 小时
+                time_diff = 13
+
+            end_time = datetime.datetime.now() - datetime.timedelta(hours=time_diff)
+            start_time = end_time - datetime.timedelta(hours=120)
             
             # Ensure WindPy is connected
             if not w.isconnected():

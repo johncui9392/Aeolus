@@ -782,7 +782,7 @@ class FinancialAnalysisApp(QMainWindow):
                 
                 if data['time'] and data['close']:
                     ax.plot(data['time'], data['close'], label=f'价格 (最新: {latest_close})')
-                    ax.set_title(f'比特币价格走势 (纽约时间 {latest_time})')
+                    ax.set_title(f'比特币价格走势 (芝加哥时间 {latest_time})')
                     ax.set_ylabel('价格')
                     ax.legend()
                     ax.grid(True)

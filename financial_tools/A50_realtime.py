@@ -52,7 +52,7 @@ class A50Realtime(QObject):
             w.start()  # 直接启动WindPy连接
             
             end_time = datetime.datetime.now()
-            start_time = end_time - datetime.timedelta(hours=60)
+            start_time = end_time - datetime.timedelta(hours=120)
             
             # Ensure WindPy is connected
             if not w.isconnected():
