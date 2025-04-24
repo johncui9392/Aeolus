@@ -82,10 +82,18 @@ class FinancialAnalysisApp(QMainWindow):
         
         self.high_result = QTextEdit()
         self.high_result.setReadOnly(True)
+        # 设置字体大小
+        font = self.high_result.font()
+        font.setPointSize(12)  # 可以根据需要调整字体大小
+        self.high_result.setFont(font)
         result_layout.addWidget(self.high_result)
         
         self.low_result = QTextEdit() 
         self.low_result.setReadOnly(True)
+        # 设置字体大小
+        font = self.low_result.font()
+        font.setPointSize(12)  # 可以根据需要调整字体大小
+        self.low_result.setFont(font)
         result_layout.addWidget(self.low_result)
         
         layout.addLayout(result_layout)
@@ -111,18 +119,24 @@ class FinancialAnalysisApp(QMainWindow):
         self.low_result.clear()
         
         if highresult_list:
-            self.high_result.append(f"创60日新高股票 ({len(highresult_list)}只) - 分析日期: {analysis_date}")
+            self.high_result.append(f"<h3>创60日新高股票 ({len(highresult_list)}只)</h3>")
+            self.high_result.append(f"分析日期: {analysis_date}")
+            self.high_result.append("<hr>")
             for code in highresult_list:
-                self.high_result.append(f"- {code}")
+                self.high_result.append(f"<br>{code}<br>")
         else:
-            self.high_result.append("没有股票创60日新高")
+            self.high_result.append("<h3>没有股票创60日新高</h3>")
+            self.high_result.append("<hr>")
             
         if lowresult_list:
-            self.low_result.append(f"创60日新低股票 ({len(lowresult_list)}只) - 分析日期: {analysis_date}")
+            self.low_result.append(f"<h3>创60日新低股票 ({len(lowresult_list)}只)</h3>")
+            self.low_result.append(f"分析日期: {analysis_date}")
+            self.low_result.append("<hr>")
             for code in lowresult_list:
-                self.low_result.append(f"- {code}")
+                self.low_result.append(f"<br>{code}<br>")
         else:
-            self.low_result.append("没有股票创60日新低")
+            self.low_result.append("<h3>没有股票创60日新低</h3>")
+            self.low_result.append("<hr>")
             
     def reset_highlow_tab(self):
         """重置高低点分析标签页"""
@@ -203,6 +217,8 @@ class FinancialAnalysisApp(QMainWindow):
             ax2.plot(result['dates'], result['hs300_growth'], label='沪深300')
             ax2.plot(result['dates'], result['zz500_growth'], label='中证500') 
             ax2.plot(result['dates'], result['zz1000_growth'], label='中证1000')
+            # 添加 0 线
+            ax2.axhline(y=0, color='r', linestyle='--', label='0线')
             ax2.set_title('指数环比25日变动(%)')
             ax2.set_ylabel('增长率(%)')
             ax2.legend()
@@ -232,7 +248,7 @@ class FinancialAnalysisApp(QMainWindow):
         # 回测年份
         control_layout.addWidget(QLabel("回测年份:"))
         self.years_spin = QSpinBox()
-        self.years_spin.setRange(1, 10)  # 1-10年范围
+        self.years_spin.setRange(1, 20)  # 1-10年范围
         self.years_spin.setValue(10)      # 默认5年
         control_layout.addWidget(self.years_spin)
         
@@ -285,6 +301,13 @@ class FinancialAnalysisApp(QMainWindow):
             ax1.plot(result['data'].index, result['data']['PE_60MA'], 
                     label='60日移动平均', color='orange', linestyle='--')
             
+            # 添加PE布林带
+            if 'PE_UpperBand' in result['data'].columns and 'PE_LowerBand' in result['data'].columns:
+                ax1.plot(result['data'].index, result['data']['PE_UpperBand'], 
+                        label='PE上轨', color='red', linestyle='--')
+                ax1.plot(result['data'].index, result['data']['PE_LowerBand'], 
+                        label='PE下轨', color='green', linestyle='--')
+            
             # 添加PE趋势线
             if 'PE' in result['trend_params']:
                 x = np.arange(len(result['data']))
@@ -303,6 +326,13 @@ class FinancialAnalysisApp(QMainWindow):
                     label=f'PB (当前: {result["PB"]:.2f})', color='red')
             ax2.plot(result['data'].index, result['data']['PB_60MA'], 
                     label='60日移动平均', color='purple', linestyle='--')
+            
+            # 添加PB布林带（假设之前已在valuation.py中计算）
+            if 'PB_UpperBand' in result['data'].columns and 'PB_LowerBand' in result['data'].columns:
+                ax2.plot(result['data'].index, result['data']['PB_UpperBand'], 
+                        label='PB上轨', color='red', linestyle='--')
+                ax2.plot(result['data'].index, result['data']['PB_LowerBand'], 
+                        label='PB下轨', color='green', linestyle='--')
             
             # 添加PB趋势线
             if 'PB' in result['trend_params']:
@@ -326,8 +356,7 @@ class FinancialAnalysisApp(QMainWindow):
                   f"PE: {result['PE']:.2f} (分位数: {result['PE_Quantile']:.1%})\n" \
                   f"PB: {result['PB']:.2f} (分位数: {result['PB_Quantile']:.1%})"
             self.val_canvas.draw()
-            QMessageBox.information(self, "估值信息", info)
-            
+            QMessageBox.information(self, "估值信息", info)            
             
     
     def add_volatility_tab(self):
@@ -482,9 +511,9 @@ class FinancialAnalysisApp(QMainWindow):
             
             # 控制区域
             control_layout = QHBoxLayout()
-            self.monitor_btn = QPushButton("开启监控")
-            self.monitor_btn.clicked.connect(self.toggle_gold_monitoring)
-            control_layout.addWidget(self.monitor_btn)
+            self.gold_monitor_btn = QPushButton("开启监控")
+            self.gold_monitor_btn.clicked.connect(self.toggle_gold_monitoring)
+            control_layout.addWidget(self.gold_monitor_btn)
             
             reset_btn = QPushButton("重置")
             reset_btn.clicked.connect(self.reset_gold_tab)
@@ -527,11 +556,11 @@ class FinancialAnalysisApp(QMainWindow):
             # 切换到黄金标签页时自动开始
             if not hasattr(self, 'gold_subscribed') or not self.gold_subscribed:
                 self.start_gold_updates()
-                self.monitor_btn.setText("停止监控")
+                self.gold_monitor_btn.setText("停止监控")
         elif hasattr(self, 'gold_subscribed') and self.gold_subscribed:
             # 切换到其他标签页时自动停止
             self.stop_gold_updates()
-            self.monitor_btn.setText("开启监控")
+            self.gold_monitor_btn.setText("开启监控")
             
     def toggle_gold_monitoring(self):
         """切换黄金监控状态"""
@@ -540,10 +569,10 @@ class FinancialAnalysisApp(QMainWindow):
             
         if not self.gold_subscribed:
             self.start_gold_updates()
-            self.monitor_btn.setText("停止监控")
+            self.gold_monitor_btn.setText("停止监控")
         else:
             self.stop_gold_updates()
-            self.monitor_btn.setText("开启监控")
+            self.monitor_gold_monitor_btnbtn.setText("开启监控")
             
     def start_gold_updates(self):
         """启动黄金行情更新"""
@@ -660,9 +689,9 @@ class FinancialAnalysisApp(QMainWindow):
             
             # 控制区域
             control_layout = QHBoxLayout()
-            self.monitor_btn = QPushButton("开启监控")
-            self.monitor_btn.clicked.connect(self.toggle_btc_monitoring)
-            control_layout.addWidget(self.monitor_btn)
+            self.btc_monitor_btn = QPushButton("开启监控")
+            self.btc_monitor_btn.clicked.connect(self.toggle_btc_monitoring)
+            control_layout.addWidget(self.btc_monitor_btn)
             
             reset_btn = QPushButton("重置")
             reset_btn.clicked.connect(self.reset_btc_tab)
@@ -705,11 +734,11 @@ class FinancialAnalysisApp(QMainWindow):
             # 切换到比特币标签页时自动开始
             if not hasattr(self, 'btc_subscribed') or not self.btc_subscribed:
                 self.start_btc_updates()
-                self.monitor_btn.setText("停止监控")
+                self.btc_monitor_btn.setText("停止监控")
         elif hasattr(self, 'btc_subscribed') and self.btc_subscribed:
             # 切换到其他标签页时自动停止
             self.stop_btc_updates()
-            self.monitor_btn.setText("开启监控")
+            self.btc_monitor_btn.setText("开启监控")
             
     def toggle_btc_monitoring(self):
         """切换比特币监控状态"""
@@ -718,10 +747,10 @@ class FinancialAnalysisApp(QMainWindow):
             
         if not self.btc_subscribed:
             self.start_btc_updates()
-            self.monitor_btn.setText("停止监控")
+            self.btc_monitor_btn.setText("停止监控")
         else:
             self.stop_btc_updates()
-            self.monitor_btn.setText("开启监控")
+            self.btc_monitor_btn.setText("开启监控")
             
     def start_btc_updates(self):
         """启动比特币行情更新"""

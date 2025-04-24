@@ -5,12 +5,12 @@ import numpy as np
 from scipy import stats
 
 def index_signal_wind():
-    """指数二八轮动信号(Wind版) """
+    """指数二八轮动信号 """
     try:
         w.start()
         
         today = datetime.datetime.now().strftime("%Y-%m-%d")
-        start_date = (datetime.datetime.now() - datetime.timedelta(days=3*365)).strftime("%Y-%m-%d")
+        start_date = (datetime.datetime.now() - datetime.timedelta(days=5*365)).strftime("%Y-%m-%d")
         
         hs300 = w.wsd("000300.SH", "close", start_date, today, "Fill=Previous")
         zz500 = w.wsd("000905.SH", "close", start_date, today, "Fill=Previous") 

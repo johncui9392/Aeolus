@@ -7,7 +7,7 @@ from PyQt5.QtCore import QObject, QThread, pyqtSignal
 class GoldRealtime(QObject):
     data_updated = pyqtSignal(dict)  # Signal for thread-safe updates
 
-    def __init__(self):
+    def __init__(self, start_time_hours=240):
         super().__init__()
         self.running = False
         self.interval = 5  # 5秒刷新间隔
@@ -16,7 +16,8 @@ class GoldRealtime(QObject):
         self._thread = QThread()
         self.moveToThread(self._thread)
         self._thread.started.connect(self._run)
-        
+        self.start_time_hours = start_time_hours  # 新增可编辑的入参
+
     def start(self):
         """启动实时数据获取"""
         if not w.isconnected():
@@ -68,7 +69,8 @@ class GoldRealtime(QObject):
                 time_diff = 13
 
             end_time = datetime.datetime.now() - datetime.timedelta(hours=time_diff)
-            start_time = end_time - datetime.timedelta(hours=120)
+            # 使用可编辑的入参计算 start_time
+            start_time = end_time - datetime.timedelta(hours=self.start_time_hours)
             
             # Ensure WindPy is connected
             if not w.isconnected():

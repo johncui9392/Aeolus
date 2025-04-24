@@ -51,6 +51,13 @@ def monitor_index_valuation(windcode, start_date=None, end_date=None, years=10):
             
             # 计算移动平均
             df[f'{col}_60MA'] = df[col].rolling(60).mean()
+
+            # 计算 PE 布林带（以 PE 为例，PB 同理）
+            if col == 'PE':
+                window = 60  # 布林带计算窗口
+                std_dev = df[col].rolling(window).std()
+                df[f'{col}_UpperBand'] = df[f'{col}_60MA'] + 2 * std_dev  # 上轨
+                df[f'{col}_LowerBand'] = df[f'{col}_60MA'] - 2 * std_dev  # 下轨
             
             # 计算趋势线参数
             x = np.arange(len(df))
