@@ -9,7 +9,7 @@ def monitor_index_valuation(windcode, start_date=None, end_date=None, years=10):
     监控指数估值(10年分析)
     参数:
         windcode: 指数Wind代码
-        start_date: 开始日期(默认5年前)
+        start_date: 开始日期(默认10年前)
         end_date: 结束日期(默认今天)
         years: 分析年数(默认10年)
     返回:

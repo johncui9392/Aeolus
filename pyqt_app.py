@@ -109,6 +109,7 @@ class FinancialAnalysisApp(QMainWindow):
         # 获取股票列表
         stockcodelist = getstocklist(index_code)
         
+        
         # 计算高低点
         summit60daydict, trough60daydict = return_60dayhighlow(stockcodelist)
         highresult_list, lowresult_list = test_last_day_stock_price(
