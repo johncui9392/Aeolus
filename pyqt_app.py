@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib import rcParams
 # 设置中文字体
-rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
+rcParams['font.sans-serif'] = ['PingFang SC', 'SimHei', 'Hiragino Sans GB', 'STHeiti', 'Arial Unicode MS']  # 支持中文的字体列表
 rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 from financial_tools.stock_analysis import (
     getstocklist, return_60dayhighlow, 
