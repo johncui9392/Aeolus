@@ -82,3 +82,24 @@ def get_volatility_analysis(windcode, start_date=None, end_date=None, years=10, 
     except Exception as e:
         print(f"波动率分析失败: {str(e)}")
         return None
+
+if __name__ == "__main__":
+    print("测试波动率分析功能...")
+    w.start()
+    
+    # 测试沪深300指数波动率分析
+    print("\n分析沪深300指数波动率(10年历史):")
+    result = get_volatility_analysis("000300.SH")
+    
+    if result:
+        print(f"\n当前波动率: {result['current_hv']:.2f}%")
+        print(f"长期平均波动率: {result['long_term_hv']:.2f}%")
+        print(f"波动率变化: {result['hv_change']:.2f}%")
+        print(f"波动率百分位: {result['hv_percentile']:.1f}%")
+        print(f"分析期间: {result['analysis_period']}")
+        
+        # 显示最近5个交易日波动率数据
+        print("\n最近5个交易日波动率数据:")
+        print(result['volatility_data'].tail())
+    else:
+        print("波动率分析失败")

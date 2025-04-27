@@ -84,3 +84,22 @@ def get_combined_volume_data():
         'long_total': long_total,
         'plot_diff': lambda: plot_volume_difference(today_times[:min_len], diff)
     }
+
+if __name__ == "__main__":
+    print("测试成交额实时分析功能...")
+    w.start()
+    
+    try:
+        data = get_combined_volume_data()
+        print(f"\n今日总成交额: {data['long_total']/10000:.2f}亿")
+        print(f"最后时间点数据: {data['times'][-1]}")
+        print(f"今日成交额: {data['today'][-1]:.2f}万")
+        print(f"昨日成交额: {data['yesterday'][-1]:.2f}万")
+        print(f"差异: {data['diff'][-1]:.2f}万")
+        
+        # 绘制差异图
+        print("\n绘制成交额差异图...")
+        data['plot_diff']()
+        
+    except Exception as e:
+        print(f"测试失败: {str(e)}")

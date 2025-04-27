@@ -57,3 +57,13 @@ def index_signal_wind():
         print(f"生成图表失败: {str(e)}")
         return None
 
+if __name__ == "__main__":
+    print("Running index_signal_wind()...")
+    result = index_signal_wind()
+    if result:
+        print(f"Signal: {result['signal']}")
+        print(f"HS300 Growth: {result['hs300_growth'][-1]:.2f}%")
+        print(f"ZZ500 Growth: {result['zz500_growth'][-1]:.2f}%")
+        print(f"ZZ1000 Growth: {result['zz1000_growth'][-1]:.2f}%")
+    else:
+        print("Failed to get signal")

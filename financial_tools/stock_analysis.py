@@ -149,3 +149,24 @@ def highlowautoeye(stocklistcode, highresult_list, lowresult_list, email_config=
         'low_stocks': lowresult_list,
         'code_to_name': code_to_name
     }
+
+if __name__ == "__main__":
+    print("测试股票分析功能...")
+    w.start()
+    
+    # 测试获取指数成分股
+    print("\n测试获取沪深300成分股:")
+    hs300_stocks = getstocklist("000300.SH")
+    print(f"获取到{len(hs300_stocks)}只成分股")
+    if hs300_stocks:
+        print("示例:", list(hs300_stocks.items())[:3])
+    
+    # 测试计算60日高低点
+    if hs300_stocks:
+        print("\n测试计算60日高低点:")
+        stock_codes = list(hs300_stocks.keys())[:10]  # 测试前10只股票
+        highs, lows = return_60dayhighlow(stock_codes)
+        print(f"获取到{len(highs)}只股票的高点, {len(lows)}只股票的低点")
+        if highs and lows:
+            sample_code = list(highs.keys())[0]
+            print(f"示例股票{sample_code}: 60日最高价={highs[sample_code]}, 60日最低价={lows[sample_code]}")

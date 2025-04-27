@@ -69,3 +69,22 @@ def monitor_index_valuation(windcode, start_date=None, end_date=None, years=10):
     except Exception as e:
         print(f"估值分析失败: {str(e)}")
         return None
+
+if __name__ == "__main__":
+    print("测试指数估值分析功能...")
+    w.start()
+    
+    # 测试沪深300指数估值分析
+    print("\n分析沪深300指数估值(10年历史):")
+    result = monitor_index_valuation("000300.SH")
+    
+    if result:
+        print(f"\n当前PE: {result['PE']:.2f} (历史分位数: {result['PE_Quantile']:.1%})")
+        print(f"当前PB: {result['PB']:.2f} (历史分位数: {result['PB_Quantile']:.1%})")
+        print(f"分析期间: {result['analysis_period']}")
+        
+        # 显示最近5个交易日数据
+        print("\n最近5个交易日数据:")
+        print(result['data'].tail())
+    else:
+        print("估值分析失败")
