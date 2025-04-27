@@ -7,7 +7,7 @@ from PyQt5.QtCore import QObject, QThread, pyqtSignal
 class A50Realtime(QObject):
     data_updated = pyqtSignal(dict)  # Signal for thread-safe updates
 
-    def __init__(self):
+    def __init__(self, start_time_hours=240):
         super().__init__()
         self.running = False
         self.interval = 5  # 5秒刷新间隔
@@ -16,7 +16,8 @@ class A50Realtime(QObject):
         self._thread = QThread()
         self.moveToThread(self._thread)
         self._thread.started.connect(self._run)
-        
+        self.start_time_hours = start_time_hours  # 新增可编辑的入参
+
     def start(self):
         """启动实时数据获取"""
         if not w.isconnected():
@@ -52,7 +53,8 @@ class A50Realtime(QObject):
             w.start()  # 直接启动WindPy连接
             
             end_time = datetime.datetime.now()
-            start_time = end_time - datetime.timedelta(hours=60)
+            # 使用可编辑的入参计算 start_time
+            start_time = end_time - datetime.timedelta(hours=self.start_time_hours)
             
             # Ensure WindPy is connected
             if not w.isconnected():
@@ -102,7 +104,8 @@ if __name__ == "__main__":
             print("无有效数据")
         print("-------------------")
     
-    A50 = A50Realtime()
+    # 可以传入不同的 start_time_hours 值
+    A50 = A50Realtime(start_time_hours=240)
     A50.register_callback(on_data_updated)
     print("启动A50实时数据获取...")
     A50.start()

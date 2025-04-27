@@ -24,6 +24,8 @@ from financial_tools.tradingvolume_realtime import get_combined_volume_data
 
 from financial_tools.gold_realtime import GoldRealtime
 from financial_tools.A50_realtime import A50Realtime
+from financial_tools.btc_realtime import BtcRealtime
+
 class FinancialAnalysisApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -42,7 +44,8 @@ class FinancialAnalysisApp(QMainWindow):
         self.add_volume_tab()
         self.add_gold_tab()
         self.add_A50_tab()
-        
+        self.add_btc_tab()
+
     def add_highlow_tab(self):
         """股票高低点分析标签页"""
         tab = QWidget()
@@ -79,10 +82,18 @@ class FinancialAnalysisApp(QMainWindow):
         
         self.high_result = QTextEdit()
         self.high_result.setReadOnly(True)
+        # 设置字体大小
+        font = self.high_result.font()
+        font.setPointSize(12)  # 可以根据需要调整字体大小
+        self.high_result.setFont(font)
         result_layout.addWidget(self.high_result)
         
         self.low_result = QTextEdit() 
         self.low_result.setReadOnly(True)
+        # 设置字体大小
+        font = self.low_result.font()
+        font.setPointSize(12)  # 可以根据需要调整字体大小
+        self.low_result.setFont(font)
         result_layout.addWidget(self.low_result)
         
         layout.addLayout(result_layout)
@@ -108,18 +119,24 @@ class FinancialAnalysisApp(QMainWindow):
         self.low_result.clear()
         
         if highresult_list:
-            self.high_result.append(f"创60日新高股票 ({len(highresult_list)}只) - 分析日期: {analysis_date}")
+            self.high_result.append(f"<h3>创60日新高股票 ({len(highresult_list)}只)</h3>")
+            self.high_result.append(f"分析日期: {analysis_date}")
+            self.high_result.append("<hr>")
             for code in highresult_list:
-                self.high_result.append(f"- {code}")
+                self.high_result.append(f"<br>{code}<br>")
         else:
-            self.high_result.append("没有股票创60日新高")
+            self.high_result.append("<h3>没有股票创60日新高</h3>")
+            self.high_result.append("<hr>")
             
         if lowresult_list:
-            self.low_result.append(f"创60日新低股票 ({len(lowresult_list)}只) - 分析日期: {analysis_date}")
+            self.low_result.append(f"<h3>创60日新低股票 ({len(lowresult_list)}只)</h3>")
+            self.low_result.append(f"分析日期: {analysis_date}")
+            self.low_result.append("<hr>")
             for code in lowresult_list:
-                self.low_result.append(f"- {code}")
+                self.low_result.append(f"<br>{code}<br>")
         else:
-            self.low_result.append("没有股票创60日新低")
+            self.low_result.append("<h3>没有股票创60日新低</h3>")
+            self.low_result.append("<hr>")
             
     def reset_highlow_tab(self):
         """重置高低点分析标签页"""
@@ -200,6 +217,8 @@ class FinancialAnalysisApp(QMainWindow):
             ax2.plot(result['dates'], result['hs300_growth'], label='沪深300')
             ax2.plot(result['dates'], result['zz500_growth'], label='中证500') 
             ax2.plot(result['dates'], result['zz1000_growth'], label='中证1000')
+            # 添加 0 线
+            ax2.axhline(y=0, color='r', linestyle='--', label='0线')
             ax2.set_title('指数环比25日变动(%)')
             ax2.set_ylabel('增长率(%)')
             ax2.legend()
@@ -229,7 +248,7 @@ class FinancialAnalysisApp(QMainWindow):
         # 回测年份
         control_layout.addWidget(QLabel("回测年份:"))
         self.years_spin = QSpinBox()
-        self.years_spin.setRange(1, 10)  # 1-10年范围
+        self.years_spin.setRange(1, 20)  # 1-10年范围
         self.years_spin.setValue(10)      # 默认5年
         control_layout.addWidget(self.years_spin)
         
@@ -282,6 +301,13 @@ class FinancialAnalysisApp(QMainWindow):
             ax1.plot(result['data'].index, result['data']['PE_60MA'], 
                     label='60日移动平均', color='orange', linestyle='--')
             
+            # 添加PE布林带
+            if 'PE_UpperBand' in result['data'].columns and 'PE_LowerBand' in result['data'].columns:
+                ax1.plot(result['data'].index, result['data']['PE_UpperBand'], 
+                        label='PE上轨', color='red', linestyle='--')
+                ax1.plot(result['data'].index, result['data']['PE_LowerBand'], 
+                        label='PE下轨', color='green', linestyle='--')
+            
             # 添加PE趋势线
             if 'PE' in result['trend_params']:
                 x = np.arange(len(result['data']))
@@ -300,6 +326,13 @@ class FinancialAnalysisApp(QMainWindow):
                     label=f'PB (当前: {result["PB"]:.2f})', color='red')
             ax2.plot(result['data'].index, result['data']['PB_60MA'], 
                     label='60日移动平均', color='purple', linestyle='--')
+            
+            # 添加PB布林带（假设之前已在valuation.py中计算）
+            if 'PB_UpperBand' in result['data'].columns and 'PB_LowerBand' in result['data'].columns:
+                ax2.plot(result['data'].index, result['data']['PB_UpperBand'], 
+                        label='PB上轨', color='red', linestyle='--')
+                ax2.plot(result['data'].index, result['data']['PB_LowerBand'], 
+                        label='PB下轨', color='green', linestyle='--')
             
             # 添加PB趋势线
             if 'PB' in result['trend_params']:
@@ -323,8 +356,7 @@ class FinancialAnalysisApp(QMainWindow):
                   f"PE: {result['PE']:.2f} (分位数: {result['PE_Quantile']:.1%})\n" \
                   f"PB: {result['PB']:.2f} (分位数: {result['PB_Quantile']:.1%})"
             self.val_canvas.draw()
-            QMessageBox.information(self, "估值信息", info)
-            
+            QMessageBox.information(self, "估值信息", info)            
             
     
     def add_volatility_tab(self):
@@ -479,9 +511,9 @@ class FinancialAnalysisApp(QMainWindow):
             
             # 控制区域
             control_layout = QHBoxLayout()
-            self.monitor_btn = QPushButton("开启监控")
-            self.monitor_btn.clicked.connect(self.toggle_gold_monitoring)
-            control_layout.addWidget(self.monitor_btn)
+            self.gold_monitor_btn = QPushButton("开启监控")
+            self.gold_monitor_btn.clicked.connect(self.toggle_gold_monitoring)
+            control_layout.addWidget(self.gold_monitor_btn)
             
             reset_btn = QPushButton("重置")
             reset_btn.clicked.connect(self.reset_gold_tab)
@@ -524,11 +556,11 @@ class FinancialAnalysisApp(QMainWindow):
             # 切换到黄金标签页时自动开始
             if not hasattr(self, 'gold_subscribed') or not self.gold_subscribed:
                 self.start_gold_updates()
-                self.monitor_btn.setText("停止监控")
+                self.gold_monitor_btn.setText("停止监控")
         elif hasattr(self, 'gold_subscribed') and self.gold_subscribed:
             # 切换到其他标签页时自动停止
             self.stop_gold_updates()
-            self.monitor_btn.setText("开启监控")
+            self.gold_monitor_btn.setText("开启监控")
             
     def toggle_gold_monitoring(self):
         """切换黄金监控状态"""
@@ -537,10 +569,10 @@ class FinancialAnalysisApp(QMainWindow):
             
         if not self.gold_subscribed:
             self.start_gold_updates()
-            self.monitor_btn.setText("停止监控")
+            self.gold_monitor_btn.setText("停止监控")
         else:
             self.stop_gold_updates()
-            self.monitor_btn.setText("开启监控")
+            self.monitor_gold_monitor_btnbtn.setText("开启监控")
             
     def start_gold_updates(self):
         """启动黄金行情更新"""
@@ -642,6 +674,185 @@ class FinancialAnalysisApp(QMainWindow):
             error_msg = f"更新显示时出错:\n{str(e)}\n{traceback.format_exc()}"
             print(error_msg)
             self.gold_table.append("处理数据时发生错误")
+
+
+    def add_btc_tab(self):
+        """比特币实时行情标签页"""
+        try:
+            tab = QWidget()
+            layout = QVBoxLayout()
+            
+            # 创建结果显示区域
+            self.btc_table = QTextEdit()
+            self.btc_table.setReadOnly(True)
+            layout.addWidget(self.btc_table)
+            
+            # 控制区域
+            control_layout = QHBoxLayout()
+            self.btc_monitor_btn = QPushButton("开启监控")
+            self.btc_monitor_btn.clicked.connect(self.toggle_btc_monitoring)
+            control_layout.addWidget(self.btc_monitor_btn)
+            
+            reset_btn = QPushButton("重置")
+            reset_btn.clicked.connect(self.reset_btc_tab)
+            control_layout.addWidget(reset_btn)
+            layout.addLayout(control_layout)
+            
+            # 图表区域
+            self.btc_figure = plt.figure()
+            self.btc_canvas = FigureCanvas(self.btc_figure)
+            layout.addWidget(self.btc_canvas)
+            tab.setLayout(layout)
+            self.btc_tab_index = self.tabs.addTab(tab, "比特币行情")
+            
+            # 初始化比特币实时数据对象
+            self.btc_table.append("比特币行情接口准备就绪")
+            from WindPy import w
+            if not w.isconnected():
+                w.start()
+                
+            self.btc_realtime = BtcRealtime()
+            self.btc_realtime.register_callback(self.update_btc_display)
+            
+        except Exception as e:
+            import traceback
+            error_msg = f"初始化比特币行情标签页时出错:\n{str(e)}\n{traceback.format_exc()}"
+            print(error_msg)  # 控制台输出
+            QMessageBox.critical(self, "初始化错误", f"无法初始化比特币行情:\n{str(e)}")
+    
+    def reset_btc_tab(self):
+        """重置比特币行情标签页"""
+        self.btc_figure.clear()
+        self.btc_canvas.draw()
+        self.btc_table.clear()
+        if hasattr(self, 'btc_subscribed') and self.btc_subscribed:
+            self.toggle_btc_subscription()  # 取消订阅
+    
+    def handle_tab_changed(self, index):
+        """处理标签页切换事件"""
+        if hasattr(self, 'btc_tab_index') and index == self.btc_tab_index:
+            # 切换到比特币标签页时自动开始
+            if not hasattr(self, 'btc_subscribed') or not self.btc_subscribed:
+                self.start_btc_updates()
+                self.btc_monitor_btn.setText("停止监控")
+        elif hasattr(self, 'btc_subscribed') and self.btc_subscribed:
+            # 切换到其他标签页时自动停止
+            self.stop_btc_updates()
+            self.btc_monitor_btn.setText("开启监控")
+            
+    def toggle_btc_monitoring(self):
+        """切换比特币监控状态"""
+        if not hasattr(self, 'btc_subscribed'):
+            self.btc_subscribed = False
+            
+        if not self.btc_subscribed:
+            self.start_btc_updates()
+            self.btc_monitor_btn.setText("停止监控")
+        else:
+            self.stop_btc_updates()
+            self.btc_monitor_btn.setText("开启监控")
+            
+    def start_btc_updates(self):
+        """启动比特币行情更新"""
+        try:
+            from WindPy import w
+            if not w.isconnected():
+                w.start()
+                if not w.isconnected():
+                    raise ConnectionError("WindPy连接失败")
+            
+            self.btc_subscribed = True
+            self.btc_realtime.start()
+            self.btc_table.append("比特币行情监控已启动...")
+            
+        except Exception as e:
+            self.btc_table.append(f"启动失败: {str(e)}")
+            self.btc_subscribed = False
+            QMessageBox.critical(self, "错误", f"启动比特币行情失败:\n{str(e)}")
+            
+    def stop_btc_updates(self):
+        """停止比特币行情更新"""
+        if hasattr(self, 'btc_subscribed') and self.btc_subscribed:
+            self.btc_realtime.stop()
+            self.btc_subscribed = False
+            self.btc_table.append("比特币行情监控已停止")
+    
+    def update_btc_display(self, data):
+        """更新比特币行情显示"""
+        try:
+            if not data or not isinstance(data, dict):
+                self.btc_table.append("无效数据格式")
+                return
+                
+            # 验证数据字段
+            required_fields = ['time', 'close', 'chg', 'pct_chg']
+            if not all(field in data for field in required_fields):
+                self.btc_table.append("数据字段不完整")
+                return
+                
+            if not data['time']:
+                self.btc_table.append("无有效时间数据")
+                return
+                
+            # 获取最新数据点
+            try:
+                latest_time = data['time'][-1] if data['time'] else "N/A"
+                latest_close = data['close'][-1] if data['close'] else "N/A"
+                latest_chg = data['chg'][-1] if data['chg'] else "N/A"
+                latest_pct = data['pct_chg'][-1] if data['pct_chg'] else "N/A"
+            except (IndexError, TypeError) as e:
+                self.btc_table.append(f"数据解析错误: {str(e)}")
+                return
+                
+            # 更新图表
+            try:
+                self.btc_figure.clear()
+                ax = self.btc_figure.add_subplot(111)
+                
+                if data['time'] and data['close']:
+                    ax.plot(data['time'], data['close'], label=f'价格 (最新: {latest_close})')
+                    ax.set_title(f'比特币价格走势 (芝加哥时间 {latest_time})')
+                    ax.set_ylabel('价格')
+                    ax.legend()
+                    ax.grid(True)
+                
+                # Auto-format date labels based on time range
+                if len(data['time']) > 0:
+                    time_range = len(data['time'])
+                    if time_range > 20:  # Long time range - show fewer labels
+                        ax.xaxis.set_major_locator(plt.MaxNLocator(6))
+                    plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
+                
+                # Adjust layout with padding
+                self.btc_figure.tight_layout(pad=2.0, h_pad=1.0)
+                self.btc_canvas.draw()
+            except Exception as e:
+                self.btc_table.append(f"图表更新失败: {str(e)}")
+                
+            # 更新数据表格
+            self.btc_table.clear()
+            self.btc_table.append("=== 比特币实时数据 ===")
+            self.btc_table.append(f"更新时间(北京): {latest_time}")
+            self.btc_table.append(f"最新价格: {latest_close}")
+            self.btc_table.append(f"涨跌额: {latest_chg}")
+            self.btc_table.append(f"涨跌幅: {latest_pct}")
+            
+            if data['time'] and data['close'] and data['chg'] and data['pct_chg']:
+                self.btc_table.append("\n=== 历史数据 ===")
+                # 显示最近5条数据
+                for i in range(min(10, len(data['time']))):
+                    idx = -1 - i  # 从最新到最旧
+                    self.btc_table.append(
+                        f"{data['time'][idx]} | 价格: {data['close'][idx]} | "
+                        f"涨跌: {data['chg'][idx]} | 涨跌幅: {data['pct_chg'][idx]}"
+                    )
+                    
+        except Exception as e:
+            import traceback
+            error_msg = f"更新显示时出错:\n{str(e)}\n{traceback.format_exc()}"
+            print(error_msg)
+            self.btc_table.append("处理数据时发生错误")
+
 
     def add_A50_tab(self):
         """A50 实时行情标签页"""
