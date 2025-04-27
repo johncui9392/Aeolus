@@ -132,16 +132,7 @@ def highlowautoeye(stocklistcode, highresult_list, lowresult_list, email_config=
         {', '.join([f"{code}({code_to_name.get(code, '')})" for code in lowresult_list])}
         """
         
-        try:
-            send_email_report(
-                receiver_email=email_config.get('receiver'),
-                subject=f"{wind_code}指数60日趋势分析报告-{report_date}",
-                content=report_content,
-                sender_email=email_config.get('sender'),
-                password=email_config.get('password')
-            )
-        except Exception as e:
-            print(f"邮件发送失败: {str(e)}")
+
     
     return {
         'report_date': report_date,
