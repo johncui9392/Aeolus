@@ -1,18 +1,24 @@
 import sys
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget, 
-                            QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-                            QDateEdit, QComboBox, QTextEdit, QScrollArea, 
-                            QSpinBox, QMessageBox)
-from PyQt5.QtCore import QDate, Qt, QThread, pyqtSignal
 import datetime
+from WindPy import w
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib import rcParams
+
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget, 
+                            QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
+                            QDateEdit, QComboBox, QTextEdit, QScrollArea, 
+                            QSpinBox, QMessageBox, QLineEdit, QTableWidget,
+                            QHeaderView, QTableWidgetItem)
+from PyQt5.QtCore import QDate, Qt, QThread, pyqtSignal, QTimer
+
 # 设置中文字体
 rcParams['font.sans-serif'] = ['PingFang SC', 'SimHei', 'Hiragino Sans GB', 'STHeiti', 'Arial Unicode MS']  # 支持中文的字体列表
 rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
+
+# Financial tools imports
 from financial_tools.stock_analysis import (
     getstocklist, return_60dayhighlow, 
     test_last_day_stock_price, highlowautoeye
@@ -21,7 +27,7 @@ from financial_tools.index_signals import index_signal_wind
 from financial_tools.volatility import get_volatility_analysis
 from financial_tools.valuation import monitor_index_valuation
 from financial_tools.tradingvolume_realtime import get_combined_volume_data
-
+from financial_tools.realtime_data import get_realtime_data
 from financial_tools.gold_realtime import GoldRealtime
 from financial_tools.A50_realtime import A50Realtime
 from financial_tools.btc_realtime import BtcRealtime
@@ -45,7 +51,7 @@ class FinancialAnalysisApp(QMainWindow):
         self.add_gold_tab()
         self.add_A50_tab()
         self.add_btc_tab()
-
+        self.add_stock_realtime_tab()
     def add_highlow_tab(self):
         """股票高低点分析标签页"""
         tab = QWidget()
@@ -530,7 +536,6 @@ class FinancialAnalysisApp(QMainWindow):
             
             # 初始化黄金实时数据对象
             self.gold_table.append("黄金行情接口准备就绪")
-            from WindPy import w
             if not w.isconnected():
                 w.start()
                 
@@ -720,6 +725,184 @@ class FinancialAnalysisApp(QMainWindow):
             error_msg = f"初始化比特币行情标签页时出错:\n{str(e)}\n{traceback.format_exc()}"
             print(error_msg)  # 控制台输出
             QMessageBox.critical(self, "初始化错误", f"无法初始化比特币行情:\n{str(e)}")
+
+    def add_stock_realtime_tab(self):
+        """股票实时行情标签页"""
+        try:
+            tab = QWidget()
+            layout = QVBoxLayout()
+            
+            # 控制区域
+            control_layout = QHBoxLayout()
+            
+            # 股票代码输入
+            self.stock_code_input = QLineEdit()
+            self.stock_code_input.setPlaceholderText("输入股票代码,如600941.SH")
+            control_layout.addWidget(self.stock_code_input)
+            
+            # 添加按钮
+            self.add_stock_btn = QPushButton("添加监控")
+            self.add_stock_btn.clicked.connect(self.add_stock_monitor)
+            control_layout.addWidget(self.add_stock_btn)
+            
+            # 刷新按钮
+            self.refresh_btn = QPushButton("手动刷新")
+            self.refresh_btn.clicked.connect(self.refresh_stock_data)
+            control_layout.addWidget(self.refresh_btn)
+            
+            
+            layout.addLayout(control_layout)
+            
+            # 表格区域
+            self.stock_table = QTableWidget()
+            self.stock_table.setColumnCount(8)
+            self.stock_table.setHorizontalHeaderLabels(["代码", "最新价", "涨跌额", "涨跌幅", "最高价", "最低价", "日期", "时间"])
+            self.stock_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+            layout.addWidget(self.stock_table)
+
+            # 图表区域
+            self.stock_figure = plt.figure()
+            self.stock_canvas = FigureCanvas(self.stock_figure)
+            layout.addWidget(self.stock_canvas)
+            
+            tab.setLayout(layout)
+            self.stock_realtime_tab_index = self.tabs.addTab(tab, "股票实时行情")
+            
+            # 初始化数据
+            self.monitored_stocks = {}
+            self.stock_history = {}  # 存储历史数据用于绘图
+            if not w.isconnected():
+                w.start()
+                
+            # 定时器更新时间
+            self.stock_timer = QTimer()
+            self.stock_timer.timeout.connect(self.update_stock_data)
+            self.stock_timer.start(3000)  # 3秒刷新一次
+            
+        except Exception as e:
+            QMessageBox.critical(self, "初始化错误", f"无法初始化股票实时行情:\n{str(e)}")
+            
+    def add_stock_monitor(self):
+        """添加股票监控"""
+        code = self.stock_code_input.text().strip()
+        if code and code not in self.monitored_stocks:
+            self.monitored_stocks[code] = {
+                'rt_last': 0,
+                'rt_chg': 0, 
+                'rt_pct_chg': 0,
+                'rt_high': 0,
+                'rt_low': 0,
+                'history': []  # 存储历史数据用于绘图
+            }
+            self.update_stock_table()
+            self.update_stock_data(code)  # 立即获取一次数据
+            
+    def update_stock_table(self):
+        """更新股票表格数据"""
+        self.stock_table.setRowCount(len(self.monitored_stocks))
+        for row, (code, data) in enumerate(self.monitored_stocks.items()):
+            self.stock_table.setItem(row, 0, QTableWidgetItem(code))
+            self.stock_table.setItem(row, 1, QTableWidgetItem(f"{data['rt_last']:.2f}"))
+            self.stock_table.setItem(row, 2, QTableWidgetItem(f"{data['rt_chg']:.2f}"))
+            self.stock_table.setItem(row, 3, QTableWidgetItem(f"{data['rt_pct_chg']:.2f}%"))
+            self.stock_table.setItem(row, 4, QTableWidgetItem(f"{data['rt_high']:.2f}"))
+            self.stock_table.setItem(row, 5, QTableWidgetItem(f"{data['rt_low']:.2f}"))
+            
+            # Format date from float YYYYMMDD to YYYY-MM-DD
+            if 'rt_date' in data:
+                date_str = f"{int(data['rt_date']):08d}"
+                formatted_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+                self.stock_table.setItem(row, 6, QTableWidgetItem(formatted_date))
+            else:
+                self.stock_table.setItem(row, 6, QTableWidgetItem("N/A"))
+            
+            # Format time from float HHMMSS to HH:MM:SS
+            if 'rt_time' in data:
+                time_str = f"{int(data['rt_time']):06d}"
+                formatted_time = f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
+                self.stock_table.setItem(row, 7, QTableWidgetItem(formatted_time))
+            else:
+                self.stock_table.setItem(row, 7, QTableWidgetItem("N/A"))
+            
+
+        
+    def update_stock_data(self, code=None):
+        """更新股票数据"""
+        if not w.isconnected():
+            w.start()
+            
+        codes = [code] if code else list(self.monitored_stocks.keys())
+        
+        for code in codes:
+            try:
+                df = get_realtime_data(code)
+                if df is not None and not df.empty:
+                    # 更新实时数据 - 处理长格式DataFrame
+                    stock_data = df[df['StockCode'] == code]
+                    for _, row in stock_data.iterrows():
+                        field = row['Field'].lower()  # Convert to lowercase to match dict keys
+                        value = row['Value']
+                        if field == 'rt_last':
+                            self.monitored_stocks[code]['rt_last'] = value
+                        elif field == 'rt_chg':
+                            self.monitored_stocks[code]['rt_chg'] = value
+                        elif field == 'rt_pct_chg':
+                            self.monitored_stocks[code]['rt_pct_chg'] = value
+                        elif field == 'rt_high':
+                            self.monitored_stocks[code]['rt_high'] = value
+                        elif field == 'rt_low':
+                            self.monitored_stocks[code]['rt_low'] = value
+                        elif field == 'rt_date':
+                            self.monitored_stocks[code]['rt_date'] = value
+                        elif field == 'rt_time':
+                            self.monitored_stocks[code]['rt_time'] = value
+                    
+                    # 记录历史数据
+                    now = datetime.datetime.now()
+                    self.monitored_stocks[code]['history'].append({
+                        'time': now,
+                        'price': self.monitored_stocks[code]['rt_last']
+                    })
+                    
+                    # 保留最近100条数据
+                    if len(self.monitored_stocks[code]['history']) > 100:
+                        self.monitored_stocks[code]['history'] = self.monitored_stocks[code]['history'][-100:]
+                    
+                    # 更新图表
+                    self.update_stock_chart(code)
+            except Exception as e:
+                print(f"更新股票{code}数据失败: {str(e)}")
+        
+        self.update_stock_table()
+        
+    def refresh_stock_data(self):
+        """手动刷新股票数据"""
+        self.update_stock_data()
+        
+    def update_stock_chart(self, code):
+        """更新股票图表"""
+        if code not in self.monitored_stocks or not self.monitored_stocks[code]['history']:
+            return
+            
+        history = self.monitored_stocks[code]['history']
+        times = [x['time'] for x in history]
+        prices = [x['price'] for x in history]
+        
+        self.stock_figure.clear()
+        ax = self.stock_figure.add_subplot(111)
+        ax.plot(times, prices, label=f'{code} 价格走势')
+        ax.set_title(f'{code} 实时价格')
+        ax.set_ylabel('价格')
+        ax.legend()
+        ax.grid(True)
+        
+        # 自动调整时间轴标签
+        if len(times) > 20:
+            ax.xaxis.set_major_locator(plt.MaxNLocator(6))
+        plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
+        
+        self.stock_figure.tight_layout()
+        self.stock_canvas.draw()
     
     def reset_btc_tab(self):
         """重置比特币行情标签页"""
