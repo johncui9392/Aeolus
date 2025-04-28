@@ -726,6 +726,7 @@ class FinancialAnalysisApp(QMainWindow):
             print(error_msg)  # 控制台输出
             QMessageBox.critical(self, "初始化错误", f"无法初始化比特币行情:\n{str(e)}")
 
+
     def add_stock_realtime_tab(self):
         """股票实时行情标签页"""
         try:
@@ -749,7 +750,11 @@ class FinancialAnalysisApp(QMainWindow):
             self.refresh_btn = QPushButton("手动刷新")
             self.refresh_btn.clicked.connect(self.refresh_stock_data)
             control_layout.addWidget(self.refresh_btn)
-            
+
+            # 新增：股票选择下拉列表
+            self.stock_selector = QComboBox()
+            self.stock_selector.currentTextChanged.connect(self.change_stock_chart)
+            control_layout.addWidget(self.stock_selector)
             
             layout.addLayout(control_layout)
             
@@ -781,7 +786,7 @@ class FinancialAnalysisApp(QMainWindow):
             
         except Exception as e:
             QMessageBox.critical(self, "初始化错误", f"无法初始化股票实时行情:\n{str(e)}")
-            
+
     def add_stock_monitor(self):
         """添加股票监控"""
         code = self.stock_code_input.text().strip()
@@ -795,8 +800,15 @@ class FinancialAnalysisApp(QMainWindow):
                 'history': []  # 存储历史数据用于绘图
             }
             self.update_stock_table()
-            self.update_stock_data(code)  # 立即获取一次数据
-            
+            self.update_stock_data(code)
+            # 新增：将新添加的股票代码添加到下拉列表中
+            self.stock_selector.addItem(code)
+
+    def change_stock_chart(self, code):
+        """切换显示的股票图表"""
+        if code:
+            self.update_stock_chart(code)
+
     def update_stock_table(self):
         """更新股票表格数据"""
         self.stock_table.setRowCount(len(self.monitored_stocks))
