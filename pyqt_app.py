@@ -728,7 +728,7 @@ class FinancialAnalysisApp(QMainWindow):
 
 
     def add_stock_realtime_tab(self):
-        """股票实时行情标签页"""
+        """实时行情标签页"""
         try:
             tab = QWidget()
             layout = QVBoxLayout()
@@ -771,7 +771,7 @@ class FinancialAnalysisApp(QMainWindow):
             layout.addWidget(self.stock_canvas)
             
             tab.setLayout(layout)
-            self.stock_realtime_tab_index = self.tabs.addTab(tab, "股票实时行情")
+            self.stock_realtime_tab_index = self.tabs.addTab(tab, "实时行情监控")
             
             # 初始化数据
             self.monitored_stocks = {}
@@ -788,7 +788,7 @@ class FinancialAnalysisApp(QMainWindow):
             QMessageBox.critical(self, "初始化错误", f"无法初始化股票实时行情:\n{str(e)}")
 
     def add_stock_monitor(self):
-        """添加股票监控"""
+        """添加行情监控"""
         code = self.stock_code_input.text().strip()
         if code and code not in self.monitored_stocks:
             self.monitored_stocks[code] = {
@@ -870,9 +870,26 @@ class FinancialAnalysisApp(QMainWindow):
                             self.monitored_stocks[code]['rt_time'] = value
                     
                     # 记录历史数据
-                    now = datetime.datetime.now()
+                    # 修改为使用获取到的 rtdate 和 rttime
+                    rt_time_str = self.monitored_stocks[code]['rt_time']
+                    rt_date_str = self.monitored_stocks[code]['rt_date']  # 假设存在 rtdate 字段
+
+                    try:
+                        if isinstance(rt_time_str, float):
+                            rt_time_str = str(int(rt_time_str)).zfill(6)
+                        else:
+                            rt_time_str = str(rt_time_str).zfill(6)
+                        time_obj = datetime.time(int(rt_time_str[:2]), int(rt_time_str[2:4]), int(rt_time_str[4:6]))
+
+                                                # 将 rt_date_str 转换为字符串
+                        rt_date_str = str(int(rt_date_str)) if isinstance(rt_date_str, float) else rt_date_str
+                        date_obj = datetime.datetime.strptime(rt_date_str, '%Y%m%d').date()
+                        rt_time = datetime.datetime.combine(date_obj, time_obj)
+                    except ValueError:
+                        print(f"无法解析时间 {rt_date_str} {rt_time_str}，使用当前时间替代")
+                        rt_time = datetime.datetime.now()
                     self.monitored_stocks[code]['history'].append({
-                        'time': now,
+                        'time': rt_time,
                         'price': self.monitored_stocks[code]['rt_last']
                     })
                     
@@ -903,6 +920,10 @@ class FinancialAnalysisApp(QMainWindow):
         self.stock_figure.clear()
         ax = self.stock_figure.add_subplot(111)
         ax.plot(times, prices, label=f'{code} 价格走势')
+        
+        # 禁用 y 轴的科学计数法
+        ax.ticklabel_format(axis='y', style='plain')
+        
         ax.set_title(f'{code} 实时价格')
         ax.set_ylabel('价格')
         ax.legend()
