@@ -554,7 +554,8 @@ class FinancialAnalysisApp(QMainWindow):
         self.gold_canvas.draw()
         self.gold_table.clear()
         if hasattr(self, 'gold_subscribed') and self.gold_subscribed:
-            self.toggle_gold_subscription()  # 取消订阅
+            # 修改为直接调用停止更新方法
+            self.stop_gold_updates()  
     
     def handle_tab_changed(self, index):
         """处理标签页切换事件"""
@@ -578,12 +579,12 @@ class FinancialAnalysisApp(QMainWindow):
             self.gold_monitor_btn.setText("停止监控")
         else:
             self.stop_gold_updates()
-            self.monitor_gold_monitor_btnbtn.setText("开启监控")
+            # 修改为正确的按钮属性名
+            self.gold_monitor_btn.setText("开启监控")  
             
     def start_gold_updates(self):
         """启动黄金行情更新"""
         try:
-            from WindPy import w
             if not w.isconnected():
                 w.start()
                 if not w.isconnected():
@@ -726,6 +727,413 @@ class FinancialAnalysisApp(QMainWindow):
             print(error_msg)  # 控制台输出
             QMessageBox.critical(self, "初始化错误", f"无法初始化比特币行情:\n{str(e)}")
 
+
+    
+    def reset_btc_tab(self):
+        """重置比特币行情标签页"""
+        self.btc_figure.clear()
+        self.btc_canvas.draw()
+        self.btc_table.clear()
+        if hasattr(self, 'btc_subscribed') and self.btc_subscribed:
+            self.stop_btc_updates()  # 修改为正确的方法调用
+    
+    def handle_tab_changed(self, index):
+        """处理标签页切换事件"""
+        if hasattr(self, 'btc_tab_index') and index == self.btc_tab_index:
+            # 切换到比特币标签页时自动开始
+            if not hasattr(self, 'btc_subscribed') or not self.btc_subscribed:
+                self.start_btc_updates()
+                self.btc_monitor_btn.setText("停止监控")
+        elif hasattr(self, 'btc_subscribed') and self.btc_subscribed:
+            # 切换到其他标签页时自动停止
+            self.stop_btc_updates()
+            self.btc_monitor_btn.setText("开启监控")
+            
+    def toggle_btc_monitoring(self):
+        """切换比特币监控状态"""
+        if not hasattr(self, 'btc_subscribed'):
+            self.btc_subscribed = False
+            
+        if not self.btc_subscribed:
+            self.start_btc_updates()
+            self.btc_monitor_btn.setText("停止监控")
+        else:
+            self.stop_btc_updates()
+            self.btc_monitor_btn.setText("开启监控")
+            
+    def start_btc_updates(self):
+        """启动比特币行情更新"""
+        try:
+            if not w.isconnected():
+                w.start()
+                if not w.isconnected():
+                    raise ConnectionError("WindPy连接失败")
+            
+            self.btc_subscribed = True
+            self.btc_realtime.start()
+            self.btc_table.append("比特币行情监控已启动...")
+            
+        except Exception as e:
+            self.btc_table.append(f"启动失败: {str(e)}")
+            self.btc_subscribed = False
+            QMessageBox.critical(self, "错误", f"启动比特币行情失败:\n{str(e)}")
+            
+    def stop_btc_updates(self):
+        """停止比特币行情更新"""
+        if hasattr(self, 'btc_subscribed') and self.btc_subscribed:
+            self.btc_realtime.stop()
+            self.btc_subscribed = False
+            self.btc_table.append("比特币行情监控已停止")
+    
+    def update_btc_display(self, data):
+        """更新比特币行情显示"""
+        try:
+            if not data or not isinstance(data, dict):
+                self.btc_table.append("无效数据格式")
+                return
+                
+            # 验证数据字段
+            required_fields = ['time', 'close', 'chg', 'pct_chg']
+            if not all(field in data for field in required_fields):
+                self.btc_table.append("数据字段不完整")
+                return
+                
+            if not data['time']:
+                self.btc_table.append("无有效时间数据")
+                return
+                
+            # 获取最新数据点
+            try:
+                latest_time = data['time'][-1] if data['time'] else "N/A"
+                latest_close = data['close'][-1] if data['close'] else "N/A"
+                latest_chg = data['chg'][-1] if data['chg'] else "N/A"
+                latest_pct = data['pct_chg'][-1] if data['pct_chg'] else "N/A"
+            except (IndexError, TypeError) as e:
+                self.btc_table.append(f"数据解析错误: {str(e)}")
+                return
+                
+            # 更新图表
+            try:
+                self.btc_figure.clear()
+                ax = self.btc_figure.add_subplot(111)
+                
+                if data['time'] and data['close']:
+                    ax.plot(data['time'], data['close'], label=f'价格 (最新: {latest_close})')
+                    ax.set_title(f'比特币价格走势 (芝加哥时间 {latest_time})')
+                    ax.set_ylabel('价格')
+                    ax.legend()
+                    ax.grid(True)
+                
+                # Auto-format date labels based on time range
+                if len(data['time']) > 0:
+                    time_range = len(data['time'])
+                    if time_range > 20:  # Long time range - show fewer labels
+                        ax.xaxis.set_major_locator(plt.MaxNLocator(6))
+                    plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
+                
+                # Adjust layout with padding
+                self.btc_figure.tight_layout(pad=2.0, h_pad=1.0)
+                self.btc_canvas.draw()
+            except Exception as e:
+                self.btc_table.append(f"图表更新失败: {str(e)}")
+                
+            # 更新数据表格
+            self.btc_table.clear()
+            self.btc_table.append("=== 比特币实时数据 ===")
+            self.btc_table.append(f"更新时间(北京): {latest_time}")
+            self.btc_table.append(f"最新价格: {latest_close}")
+            self.btc_table.append(f"涨跌额: {latest_chg}")
+            self.btc_table.append(f"涨跌幅: {latest_pct}")
+            
+            if data['time'] and data['close'] and data['chg'] and data['pct_chg']:
+                self.btc_table.append("\n=== 历史数据 ===")
+                # 显示最近5条数据
+                for i in range(min(10, len(data['time']))):
+                    idx = -1 - i  # 从最新到最旧
+                    self.btc_table.append(
+                        f"{data['time'][idx]} | 价格: {data['close'][idx]} | "
+                        f"涨跌: {data['chg'][idx]} | 涨跌幅: {data['pct_chg'][idx]}"
+                    )
+                    
+        except Exception as e:
+            import traceback
+            error_msg = f"更新显示时出错:\n{str(e)}\n{traceback.format_exc()}"
+            print(error_msg)
+            self.btc_table.append("处理数据时发生错误")
+
+
+    def add_A50_tab(self):
+        """A50 实时行情标签页"""
+        try:
+            tab = QWidget()
+            layout = QVBoxLayout()
+            
+            # 创建结果显示区域
+            self.A50_table = QTextEdit()
+            self.A50_table.setReadOnly(True)
+            layout.addWidget(self.A50_table)
+            
+            # 控制区域
+            control_layout = QHBoxLayout()
+            self.A50_monitor_btn = QPushButton("开启监控")
+            self.A50_monitor_btn.clicked.connect(self.toggle_A50_monitoring)
+            control_layout.addWidget(self.A50_monitor_btn)
+            
+            reset_btn = QPushButton("重置")
+            reset_btn.clicked.connect(self.reset_A50_tab)
+            control_layout.addWidget(reset_btn)
+            layout.addLayout(control_layout)
+            
+            # 图表区域
+            self.A50_figure = plt.figure()
+            self.A50_canvas = FigureCanvas(self.A50_figure)
+            layout.addWidget(self.A50_canvas)
+            tab.setLayout(layout)
+            self.A50_tab_index = self.tabs.addTab(tab, "A50 实时行情")
+            
+            # 初始化 A50 实时数据对象
+            self.A50_table.append("A50 行情接口准备就绪")
+            from WindPy import w
+            if not w.isconnected():
+                w.start()
+                
+            self.A50_realtime = A50Realtime()
+            self.A50_realtime.register_callback(self.update_A50_display)
+            
+        except Exception as e:
+            import traceback
+            error_msg = f"初始化 A50 行情标签页时出错:\n{str(e)}\n{traceback.format_exc()}"
+            print(error_msg)  # 控制台输出
+            QMessageBox.critical(self, "初始化错误", f"无法初始化 A50 行情:\n{str(e)}")
+    
+    def reset_A50_tab(self):
+        """重置 A50 行情标签页"""
+        self.A50_figure.clear()
+        self.A50_canvas.draw()
+        self.A50_table.clear()
+        if hasattr(self, 'A50_subscribed') and self.A50_subscribed:
+            self.stop_A50_updates()  # 修改为正确的方法调用
+    
+    def handle_tab_changed(self, index):
+        """处理标签页切换事件"""
+        if hasattr(self, 'A50_tab_index') and index == self.A50_tab_index:
+            # 切换到 A50 标签页时自动开始
+            if not hasattr(self, 'A50_subscribed') or not self.A50_subscribed:
+                self.start_A50_updates()
+                self.A50_monitor_btn.setText("停止监控")
+        elif hasattr(self, 'A50_subscribed') and self.A50_subscribed:
+            # 切换到其他标签页时自动停止
+            self.stop_A50_updates()
+            self.A50_monitor_btn.setText("开启监控")
+            
+    def toggle_A50_monitoring(self):
+        """切换 A50 监控状态"""
+        if not hasattr(self, 'A50_subscribed'):
+            self.A50_subscribed = False
+            
+        if not self.A50_subscribed:
+            self.start_A50_updates()
+            self.A50_monitor_btn.setText("停止监控")
+        else:
+            self.stop_A50_updates()
+            self.A50_monitor_btn.setText("开启监控")
+            
+    def start_A50_updates(self):
+        """启动 A50 行情更新"""
+        try:
+            if not w.isconnected():
+                w.start()
+                if not w.isconnected():
+                    raise ConnectionError("WindPy连接失败")
+            
+            self.A50_subscribed = True
+            self.A50_realtime.start()
+            self.A50_table.append("A50 行情监控已启动...")
+            
+        except Exception as e:
+            self.A50_table.append(f"启动失败: {str(e)}")
+            self.A50_subscribed = False
+            QMessageBox.critical(self, "错误", f"启动 A50 行情失败:\n{str(e)}")
+            
+    def stop_A50_updates(self):
+        """停止 A50 行情更新"""
+        if hasattr(self, 'A50_subscribed') and self.A50_subscribed:
+            self.A50_realtime.stop()
+            self.A50_subscribed = False
+            self.A50_table.append("A50 行情监控已停止")
+    
+    def update_A50_display(self, data):
+        """更新 A50 行情显示"""
+        try:
+            if not data or not isinstance(data, dict):
+                self.A50_table.append("无效数据格式")
+                return
+                
+            # 验证数据字段
+            required_fields = ['time', 'close', 'chg', 'pct_chg']
+            if not all(field in data for field in required_fields):
+                self.A50_table.append("数据字段不完整")
+                return
+                
+            if not data['time']:
+                self.A50_table.append("无有效时间数据")
+                return
+                
+            # 获取最新数据点
+            try:
+                latest_time = data['time'][-1] if data['time'] else "N/A"
+                latest_close = data['close'][-1] if data['close'] else "N/A"
+                latest_chg = data['chg'][-1] if data['chg'] else "N/A"
+                latest_pct = data['pct_chg'][-1] if data['pct_chg'] else "N/A"
+            except (IndexError, TypeError) as e:
+                self.A50_table.append(f"数据解析错误: {str(e)}")
+                return
+                
+            # 更新图表
+            try:
+                self.A50_figure.clear()
+                ax = self.A50_figure.add_subplot(111)
+                
+                if data['time'] and data['close']:
+                    ax.plot(data['time'], data['close'], label=f'价格 (最新: {latest_close})')
+                    ax.set_title(f'A50 实时价格走势 (北京时间 {latest_time})')
+                    ax.set_ylabel('价格')
+                    ax.legend()
+                    ax.grid(True)
+                
+                # Auto-format date labels based on time range
+                if len(data['time']) > 0:
+                    time_range = len(data['time'])
+                    if time_range > 20:  # Long time range - show fewer labels
+                        ax.xaxis.set_major_locator(plt.MaxNLocator(6))
+                    plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
+                
+                # Adjust layout with padding
+                self.A50_figure.tight_layout(pad=2.0, h_pad=1.0)
+                self.A50_canvas.draw()
+            except Exception as e:
+                self.A50_table.append(f"图表更新失败: {str(e)}")
+                
+            # 更新数据表格
+            self.A50_table.clear()
+            self.A50_table.append("=== A50 实时数据 ===")
+            self.A50_table.append(f"更新时间(北京): {latest_time}")
+            self.A50_table.append(f"最新价格: {latest_close}")
+            self.A50_table.append(f"涨跌额: {latest_chg}")
+            self.A50_table.append(f"涨跌幅: {latest_pct}")
+            
+            if data['time'] and data['close'] and data['chg'] and data['pct_chg']:
+                self.A50_table.append("\n=== 历史数据 ===")
+                # 显示最近5条数据
+                for i in range(min(10, len(data['time']))):
+                    idx = -1 - i  # 从最新到最旧
+                    self.A50_table.append(
+                        f"{data['time'][idx]} | 价格: {data['close'][idx]} | "
+                        f"涨跌: {data['chg'][idx]} | 涨跌幅: {data['pct_chg'][idx]}"
+                    )
+                    
+        except Exception as e:
+            import traceback
+            error_msg = f"更新显示时出错:\n{str(e)}\n{traceback.format_exc()}"
+            print(error_msg)
+            self.A50_table.append("处理数据时发生错误")
+
+
+    def run_volume_analysis(self):
+        """执行成交分析"""
+        # Create worker thread for volume data
+        self.volume_worker = VolumeWorker()
+        self.volume_worker.data_ready.connect(self.update_volume_display)
+        self.volume_worker.start()
+        
+    def update_volume_display(self, data):
+        """更新成交分析显示"""
+        if not data or 'error' in data:
+            self.volume_figure.clear()
+            ax = self.volume_figure.add_subplot(111)
+            ax.text(0.5, 0.5, '无有效数据', ha='center', va='center')
+            self.volume_canvas.draw()
+            return
+            
+        try:
+            self.volume_figure.clear()
+            
+            # 定义交易时间段 (9:30-11:30 和 13:00-15:00) - 分钟级
+            morning_times = [f"09:{m:02d}" for m in range(30, 60)] + \
+                          [f"10:{m:02d}" for m in range(0, 60)] + \
+                          [f"11:{m:02d}" for m in range(0, 31)]
+            
+            afternoon_times = [f"13:{m:02d}" for m in range(0, 60)] + \
+                            [f"14:{m:02d}" for m in range(0, 60)] + \
+                            ["15:00"]
+            
+            full_times = morning_times + afternoon_times
+            
+            # 对齐数据到固定时间点
+            aligned_today = []
+            aligned_yesterday = [] 
+            aligned_today_cum = []
+            aligned_yesterday_cum = []
+            aligned_diff = []
+            
+            current_time = datetime.datetime.now().strftime('%H:%M')
+            for t in full_times:
+                if t > current_time:
+                    break  # 不显示未来时间点
+                    
+                idx = data['times'].index(t) if t in data['times'] else -1
+                if idx >= 0:
+                    aligned_today.append(data['today'][idx])
+                    aligned_yesterday.append(data['yesterday'][idx])
+                    aligned_today_cum.append(data['today_cumulative'][idx])
+                    aligned_yesterday_cum.append(data['yesterday_cumulative'][idx])
+                    aligned_diff.append(data['diff'][idx])
+                else:
+                    aligned_today.append(0)
+                    aligned_yesterday.append(0)
+                    aligned_today_cum.append(0)
+                    aligned_yesterday_cum.append(0)
+                    aligned_diff.append(0)
+            
+            # 创建单个图表
+            self.volume_figure.set_size_inches(12, 7)
+            ax = self.volume_figure.add_subplot(111)
+            
+            # 绘制累计成交额（折线图）
+            ax.plot(full_times[:len(aligned_today_cum)], aligned_today_cum, 'b-', label='今日累计', linewidth=2)
+            ax.plot(full_times[:len(aligned_today_cum)], aligned_yesterday_cum, 'g-', label='昨日累计', linewidth=2)
+            ax.set_xlabel('时间')
+            ax.set_ylabel('累计成交额 (亿元)', color='b')
+            ax.set_title('沪深两市成交分析')
+            ax.grid(True)
+            
+            # 创建第二个y轴用于差额柱状图
+            ax2 = ax.twinx()
+            ax2.bar(full_times[:len(aligned_diff)], aligned_diff, 
+                   color=['m' if x >=0 else 'r' for x in aligned_diff],
+                   alpha=0.5, label='成交额差额')
+            ax2.axhline(0, color='gray', linestyle='--')
+            ax2.set_ylabel('成交额差额 (亿元)', color='m')
+            
+            # 合并图例
+            lines, labels = ax.get_legend_handles_labels()
+            bars, bar_labels = ax2.get_legend_handles_labels()
+            ax.legend(lines + bars, labels + bar_labels, loc='upper left')
+            
+            # 自动调整x轴标签间隔
+            if len(full_times) > 30:  # 如果数据 много于30个
+                ax.xaxis.set_major_locator(plt.MaxNLocator(10))  # 只显示10个主要刻度
+            # 旋转x轴标签
+            plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
+            # 调整布局防止标签被截断
+            self.volume_figure.tight_layout(pad=2.0)
+            self.volume_canvas.draw()
+            
+        except Exception as e:
+            self.volume_figure.clear()
+            ax = self.volume_figure.add_subplot(111)
+            ax.text(0.5, 0.5, f'图表错误: {str(e)}', ha='center', va='center')
+            self.volume_canvas.draw()
 
     def add_stock_realtime_tab(self):
         """实时行情标签页"""
@@ -936,414 +1344,6 @@ class FinancialAnalysisApp(QMainWindow):
         
         self.stock_figure.tight_layout()
         self.stock_canvas.draw()
-    
-    def reset_btc_tab(self):
-        """重置比特币行情标签页"""
-        self.btc_figure.clear()
-        self.btc_canvas.draw()
-        self.btc_table.clear()
-        if hasattr(self, 'btc_subscribed') and self.btc_subscribed:
-            self.toggle_btc_subscription()  # 取消订阅
-    
-    def handle_tab_changed(self, index):
-        """处理标签页切换事件"""
-        if hasattr(self, 'btc_tab_index') and index == self.btc_tab_index:
-            # 切换到比特币标签页时自动开始
-            if not hasattr(self, 'btc_subscribed') or not self.btc_subscribed:
-                self.start_btc_updates()
-                self.btc_monitor_btn.setText("停止监控")
-        elif hasattr(self, 'btc_subscribed') and self.btc_subscribed:
-            # 切换到其他标签页时自动停止
-            self.stop_btc_updates()
-            self.btc_monitor_btn.setText("开启监控")
-            
-    def toggle_btc_monitoring(self):
-        """切换比特币监控状态"""
-        if not hasattr(self, 'btc_subscribed'):
-            self.btc_subscribed = False
-            
-        if not self.btc_subscribed:
-            self.start_btc_updates()
-            self.btc_monitor_btn.setText("停止监控")
-        else:
-            self.stop_btc_updates()
-            self.btc_monitor_btn.setText("开启监控")
-            
-    def start_btc_updates(self):
-        """启动比特币行情更新"""
-        try:
-            from WindPy import w
-            if not w.isconnected():
-                w.start()
-                if not w.isconnected():
-                    raise ConnectionError("WindPy连接失败")
-            
-            self.btc_subscribed = True
-            self.btc_realtime.start()
-            self.btc_table.append("比特币行情监控已启动...")
-            
-        except Exception as e:
-            self.btc_table.append(f"启动失败: {str(e)}")
-            self.btc_subscribed = False
-            QMessageBox.critical(self, "错误", f"启动比特币行情失败:\n{str(e)}")
-            
-    def stop_btc_updates(self):
-        """停止比特币行情更新"""
-        if hasattr(self, 'btc_subscribed') and self.btc_subscribed:
-            self.btc_realtime.stop()
-            self.btc_subscribed = False
-            self.btc_table.append("比特币行情监控已停止")
-    
-    def update_btc_display(self, data):
-        """更新比特币行情显示"""
-        try:
-            if not data or not isinstance(data, dict):
-                self.btc_table.append("无效数据格式")
-                return
-                
-            # 验证数据字段
-            required_fields = ['time', 'close', 'chg', 'pct_chg']
-            if not all(field in data for field in required_fields):
-                self.btc_table.append("数据字段不完整")
-                return
-                
-            if not data['time']:
-                self.btc_table.append("无有效时间数据")
-                return
-                
-            # 获取最新数据点
-            try:
-                latest_time = data['time'][-1] if data['time'] else "N/A"
-                latest_close = data['close'][-1] if data['close'] else "N/A"
-                latest_chg = data['chg'][-1] if data['chg'] else "N/A"
-                latest_pct = data['pct_chg'][-1] if data['pct_chg'] else "N/A"
-            except (IndexError, TypeError) as e:
-                self.btc_table.append(f"数据解析错误: {str(e)}")
-                return
-                
-            # 更新图表
-            try:
-                self.btc_figure.clear()
-                ax = self.btc_figure.add_subplot(111)
-                
-                if data['time'] and data['close']:
-                    ax.plot(data['time'], data['close'], label=f'价格 (最新: {latest_close})')
-                    ax.set_title(f'比特币价格走势 (芝加哥时间 {latest_time})')
-                    ax.set_ylabel('价格')
-                    ax.legend()
-                    ax.grid(True)
-                
-                # Auto-format date labels based on time range
-                if len(data['time']) > 0:
-                    time_range = len(data['time'])
-                    if time_range > 20:  # Long time range - show fewer labels
-                        ax.xaxis.set_major_locator(plt.MaxNLocator(6))
-                    plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
-                
-                # Adjust layout with padding
-                self.btc_figure.tight_layout(pad=2.0, h_pad=1.0)
-                self.btc_canvas.draw()
-            except Exception as e:
-                self.btc_table.append(f"图表更新失败: {str(e)}")
-                
-            # 更新数据表格
-            self.btc_table.clear()
-            self.btc_table.append("=== 比特币实时数据 ===")
-            self.btc_table.append(f"更新时间(北京): {latest_time}")
-            self.btc_table.append(f"最新价格: {latest_close}")
-            self.btc_table.append(f"涨跌额: {latest_chg}")
-            self.btc_table.append(f"涨跌幅: {latest_pct}")
-            
-            if data['time'] and data['close'] and data['chg'] and data['pct_chg']:
-                self.btc_table.append("\n=== 历史数据 ===")
-                # 显示最近5条数据
-                for i in range(min(10, len(data['time']))):
-                    idx = -1 - i  # 从最新到最旧
-                    self.btc_table.append(
-                        f"{data['time'][idx]} | 价格: {data['close'][idx]} | "
-                        f"涨跌: {data['chg'][idx]} | 涨跌幅: {data['pct_chg'][idx]}"
-                    )
-                    
-        except Exception as e:
-            import traceback
-            error_msg = f"更新显示时出错:\n{str(e)}\n{traceback.format_exc()}"
-            print(error_msg)
-            self.btc_table.append("处理数据时发生错误")
-
-
-    def add_A50_tab(self):
-        """A50 实时行情标签页"""
-        try:
-            tab = QWidget()
-            layout = QVBoxLayout()
-            
-            # 创建结果显示区域
-            self.A50_table = QTextEdit()
-            self.A50_table.setReadOnly(True)
-            layout.addWidget(self.A50_table)
-            
-            # 控制区域
-            control_layout = QHBoxLayout()
-            self.A50_monitor_btn = QPushButton("开启监控")
-            self.A50_monitor_btn.clicked.connect(self.toggle_A50_monitoring)
-            control_layout.addWidget(self.A50_monitor_btn)
-            
-            reset_btn = QPushButton("重置")
-            reset_btn.clicked.connect(self.reset_A50_tab)
-            control_layout.addWidget(reset_btn)
-            layout.addLayout(control_layout)
-            
-            # 图表区域
-            self.A50_figure = plt.figure()
-            self.A50_canvas = FigureCanvas(self.A50_figure)
-            layout.addWidget(self.A50_canvas)
-            tab.setLayout(layout)
-            self.A50_tab_index = self.tabs.addTab(tab, "A50 实时行情")
-            
-            # 初始化 A50 实时数据对象
-            self.A50_table.append("A50 行情接口准备就绪")
-            from WindPy import w
-            if not w.isconnected():
-                w.start()
-                
-            self.A50_realtime = A50Realtime()
-            self.A50_realtime.register_callback(self.update_A50_display)
-            
-        except Exception as e:
-            import traceback
-            error_msg = f"初始化 A50 行情标签页时出错:\n{str(e)}\n{traceback.format_exc()}"
-            print(error_msg)  # 控制台输出
-            QMessageBox.critical(self, "初始化错误", f"无法初始化 A50 行情:\n{str(e)}")
-    
-    def reset_A50_tab(self):
-        """重置 A50 行情标签页"""
-        self.A50_figure.clear()
-        self.A50_canvas.draw()
-        self.A50_table.clear()
-        if hasattr(self, 'A50_subscribed') and self.A50_subscribed:
-            self.toggle_A50_subscription()  # 取消订阅
-    
-    def handle_tab_changed(self, index):
-        """处理标签页切换事件"""
-        if hasattr(self, 'A50_tab_index') and index == self.A50_tab_index:
-            # 切换到 A50 标签页时自动开始
-            if not hasattr(self, 'A50_subscribed') or not self.A50_subscribed:
-                self.start_A50_updates()
-                self.A50_monitor_btn.setText("停止监控")
-        elif hasattr(self, 'A50_subscribed') and self.A50_subscribed:
-            # 切换到其他标签页时自动停止
-            self.stop_A50_updates()
-            self.A50_monitor_btn.setText("开启监控")
-            
-    def toggle_A50_monitoring(self):
-        """切换 A50 监控状态"""
-        if not hasattr(self, 'A50_subscribed'):
-            self.A50_subscribed = False
-            
-        if not self.A50_subscribed:
-            self.start_A50_updates()
-            self.A50_monitor_btn.setText("停止监控")
-        else:
-            self.stop_A50_updates()
-            self.A50_monitor_btn.setText("开启监控")
-            
-    def start_A50_updates(self):
-        """启动 A50 行情更新"""
-        try:
-            from WindPy import w
-            if not w.isconnected():
-                w.start()
-                if not w.isconnected():
-                    raise ConnectionError("WindPy连接失败")
-            
-            self.A50_subscribed = True
-            self.A50_realtime.start()
-            self.A50_table.append("A50 行情监控已启动...")
-            
-        except Exception as e:
-            self.A50_table.append(f"启动失败: {str(e)}")
-            self.A50_subscribed = False
-            QMessageBox.critical(self, "错误", f"启动 A50 行情失败:\n{str(e)}")
-            
-    def stop_A50_updates(self):
-        """停止 A50 行情更新"""
-        if hasattr(self, 'A50_subscribed') and self.A50_subscribed:
-            self.A50_realtime.stop()
-            self.A50_subscribed = False
-            self.A50_table.append("A50 行情监控已停止")
-    
-    def update_A50_display(self, data):
-        """更新 A50 行情显示"""
-        try:
-            if not data or not isinstance(data, dict):
-                self.A50_table.append("无效数据格式")
-                return
-                
-            # 验证数据字段
-            required_fields = ['time', 'close', 'chg', 'pct_chg']
-            if not all(field in data for field in required_fields):
-                self.A50_table.append("数据字段不完整")
-                return
-                
-            if not data['time']:
-                self.A50_table.append("无有效时间数据")
-                return
-                
-            # 获取最新数据点
-            try:
-                latest_time = data['time'][-1] if data['time'] else "N/A"
-                latest_close = data['close'][-1] if data['close'] else "N/A"
-                latest_chg = data['chg'][-1] if data['chg'] else "N/A"
-                latest_pct = data['pct_chg'][-1] if data['pct_chg'] else "N/A"
-            except (IndexError, TypeError) as e:
-                self.A50_table.append(f"数据解析错误: {str(e)}")
-                return
-                
-            # 更新图表
-            try:
-                self.A50_figure.clear()
-                ax = self.A50_figure.add_subplot(111)
-                
-                if data['time'] and data['close']:
-                    ax.plot(data['time'], data['close'], label=f'价格 (最新: {latest_close})')
-                    ax.set_title(f'A50 实时价格走势 (北京时间 {latest_time})')
-                    ax.set_ylabel('价格')
-                    ax.legend()
-                    ax.grid(True)
-                
-                # Auto-format date labels based on time range
-                if len(data['time']) > 0:
-                    time_range = len(data['time'])
-                    if time_range > 20:  # Long time range - show fewer labels
-                        ax.xaxis.set_major_locator(plt.MaxNLocator(6))
-                    plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
-                
-                # Adjust layout with padding
-                self.A50_figure.tight_layout(pad=2.0, h_pad=1.0)
-                self.A50_canvas.draw()
-            except Exception as e:
-                self.A50_table.append(f"图表更新失败: {str(e)}")
-                
-            # 更新数据表格
-            self.A50_table.clear()
-            self.A50_table.append("=== A50 实时数据 ===")
-            self.A50_table.append(f"更新时间(北京): {latest_time}")
-            self.A50_table.append(f"最新价格: {latest_close}")
-            self.A50_table.append(f"涨跌额: {latest_chg}")
-            self.A50_table.append(f"涨跌幅: {latest_pct}")
-            
-            if data['time'] and data['close'] and data['chg'] and data['pct_chg']:
-                self.A50_table.append("\n=== 历史数据 ===")
-                # 显示最近5条数据
-                for i in range(min(10, len(data['time']))):
-                    idx = -1 - i  # 从最新到最旧
-                    self.A50_table.append(
-                        f"{data['time'][idx]} | 价格: {data['close'][idx]} | "
-                        f"涨跌: {data['chg'][idx]} | 涨跌幅: {data['pct_chg'][idx]}"
-                    )
-                    
-        except Exception as e:
-            import traceback
-            error_msg = f"更新显示时出错:\n{str(e)}\n{traceback.format_exc()}"
-            print(error_msg)
-            self.A50_table.append("处理数据时发生错误")
-
-
-    def run_volume_analysis(self):
-        """执行成交分析"""
-        # Create worker thread for volume data
-        self.volume_worker = VolumeWorker()
-        self.volume_worker.data_ready.connect(self.update_volume_display)
-        self.volume_worker.start()
-        
-    def update_volume_display(self, data):
-        """更新成交分析显示"""
-        if not data or 'error' in data:
-            self.volume_figure.clear()
-            ax = self.volume_figure.add_subplot(111)
-            ax.text(0.5, 0.5, '无有效数据', ha='center', va='center')
-            self.volume_canvas.draw()
-            return
-            
-        try:
-            self.volume_figure.clear()
-            
-            # 定义交易时间段 (9:30-11:30 和 13:00-15:00) - 分钟级
-            morning_times = [f"09:{m:02d}" for m in range(30, 60)] + \
-                          [f"10:{m:02d}" for m in range(0, 60)] + \
-                          [f"11:{m:02d}" for m in range(0, 31)]
-            
-            afternoon_times = [f"13:{m:02d}" for m in range(0, 60)] + \
-                            [f"14:{m:02d}" for m in range(0, 60)] + \
-                            ["15:00"]
-            
-            full_times = morning_times + afternoon_times
-            
-            # 对齐数据到固定时间点
-            aligned_today = []
-            aligned_yesterday = [] 
-            aligned_today_cum = []
-            aligned_yesterday_cum = []
-            aligned_diff = []
-            
-            current_time = datetime.datetime.now().strftime('%H:%M')
-            for t in full_times:
-                if t > current_time:
-                    break  # 不显示未来时间点
-                    
-                idx = data['times'].index(t) if t in data['times'] else -1
-                if idx >= 0:
-                    aligned_today.append(data['today'][idx])
-                    aligned_yesterday.append(data['yesterday'][idx])
-                    aligned_today_cum.append(data['today_cumulative'][idx])
-                    aligned_yesterday_cum.append(data['yesterday_cumulative'][idx])
-                    aligned_diff.append(data['diff'][idx])
-                else:
-                    aligned_today.append(0)
-                    aligned_yesterday.append(0)
-                    aligned_today_cum.append(0)
-                    aligned_yesterday_cum.append(0)
-                    aligned_diff.append(0)
-            
-            # 创建单个图表
-            self.volume_figure.set_size_inches(12, 7)
-            ax = self.volume_figure.add_subplot(111)
-            
-            # 绘制累计成交额（折线图）
-            ax.plot(full_times[:len(aligned_today_cum)], aligned_today_cum, 'b-', label='今日累计', linewidth=2)
-            ax.plot(full_times[:len(aligned_today_cum)], aligned_yesterday_cum, 'g-', label='昨日累计', linewidth=2)
-            ax.set_xlabel('时间')
-            ax.set_ylabel('累计成交额 (亿元)', color='b')
-            ax.set_title('沪深两市成交分析')
-            ax.grid(True)
-            
-            # 创建第二个y轴用于差额柱状图
-            ax2 = ax.twinx()
-            ax2.bar(full_times[:len(aligned_diff)], aligned_diff, 
-                   color=['m' if x >=0 else 'r' for x in aligned_diff],
-                   alpha=0.5, label='成交额差额')
-            ax2.axhline(0, color='gray', linestyle='--')
-            ax2.set_ylabel('成交额差额 (亿元)', color='m')
-            
-            # 合并图例
-            lines, labels = ax.get_legend_handles_labels()
-            bars, bar_labels = ax2.get_legend_handles_labels()
-            ax.legend(lines + bars, labels + bar_labels, loc='upper left')
-            
-            # 自动调整x轴标签间隔
-            if len(full_times) > 30:  # 如果数据 много于30个
-                ax.xaxis.set_major_locator(plt.MaxNLocator(10))  # 只显示10个主要刻度
-            # 旋转x轴标签
-            plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
-            # 调整布局防止标签被截断
-            self.volume_figure.tight_layout(pad=2.0)
-            self.volume_canvas.draw()
-            
-        except Exception as e:
-            self.volume_figure.clear()
-            ax = self.volume_figure.add_subplot(111)
-            ax.text(0.5, 0.5, f'图表错误: {str(e)}', ha='center', va='center')
-            self.volume_canvas.draw()
 
     
 class VolumeWorker(QThread):
