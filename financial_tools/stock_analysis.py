@@ -7,11 +7,9 @@ from scipy import stats
 def getstocklist(windcode):
     """获取指数成分股列表(适配WindPy接口)返回{代码:简称}字典"""
     try:
-        data = w.wset("sectorconstituent", f"windcode={windcode};")
-        if data.ErrorCode == 0 and hasattr(data, 'Data') and len(data.Data) > 2:
-            return dict(zip(data.Data[1], data.Data[2]))
-        
-        data = w.wset("indexconstituent", f"windcode={windcode};")
+        import datetime
+        current_date = datetime.datetime.now().strftime('%Y%m%d')
+        data = w.wset("indexconstituent", f"windcode={windcode};date={current_date}")
         if data.ErrorCode == 0 and hasattr(data, 'Data') and len(data.Data) > 2:
             return dict(zip(data.Data[1], data.Data[2]))
             
@@ -148,6 +146,7 @@ if __name__ == "__main__":
     # 测试获取指数成分股
     print("\n测试获取沪深300成分股:")
     hs300_stocks = getstocklist("000300.SH")
+    print(hs300_stocks)
     print(f"获取到{len(hs300_stocks)}只成分股")
     if hs300_stocks:
         print("示例:", list(hs300_stocks.items())[:3])
