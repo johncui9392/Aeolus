@@ -218,7 +218,8 @@ class FinancialAnalysisApp(QMainWindow):
         """执行高低点分析"""
         index_code = self.index_combo.currentText()
         analysis_date = self.date_edit.date().toString("yyyy-MM-dd")
-        
+        if not w.isconnected():
+            w.start()
         # 获取股票列表
         stockcodelist = getstocklist(index_code)
         
