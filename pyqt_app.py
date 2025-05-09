@@ -6,12 +6,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib import rcParams
-
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget, 
                             QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
                             QDateEdit, QComboBox, QTextEdit, QScrollArea, 
                             QSpinBox, QMessageBox, QLineEdit, QTableWidget,
-                            QHeaderView, QTableWidgetItem)
+                            QHeaderView, QTableWidgetItem, QGroupBox)
 from PyQt5.QtCore import QDate, Qt, QThread, pyqtSignal, QTimer
 
 # 设置中文字体
@@ -30,7 +29,14 @@ from financial_tools.tradingvolume_realtime import get_combined_volume_data
 from financial_tools.realtime_data import get_realtime_data
 from financial_tools.gold_realtime import GoldRealtime
 from financial_tools.A50_realtime import A50Realtime
+from financial_tools.uc00_realtime import Uc00Realtime
+from financial_tools.nq_realtime import NqRealtime
+from financial_tools.es_realtime import EsRealtime
+from financial_tools.ym_realtime import YmRealtime
 from financial_tools.btc_realtime import BtcRealtime
+
+from utility_tools.market_tab_utils import add_market_tab, toggle_monitoring, start_market_updates, stop_market_updates, update_market_display, reset_market_tab
+from utility_tools.rtd_market_tab_utils import add_stock_realtime_tab
 
 class FinancialAnalysisApp(QMainWindow):
     def __init__(self):
@@ -42,16 +48,117 @@ class FinancialAnalysisApp(QMainWindow):
         self.tabs = QTabWidget()
         self.setCentralWidget(self.tabs)
         
-        # Add tabs
-        self.add_highlow_tab()
-        self.add_signal_tab() 
-        self.add_valuation_tab()
-        self.add_volatility_tab()
-        self.add_volume_tab()
-        self.add_gold_tab()
-        self.add_A50_tab()
-        self.add_btc_tab()
-        self.add_stock_realtime_tab()
+        # Add home tab
+        self.add_home_tab()
+    def add_home_tab(self):
+        """添加首页标签页"""
+        tab = QWidget()
+        layout = QVBoxLayout()
+        
+        # 首页标题
+        title_label = QLabel("欢迎使用金融数据分析平台")
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setStyleSheet("font-size: 24px; font-weight: bold;")
+        layout.addWidget(title_label)
+        
+        # 分类布局
+        # 分析类功能
+        analysis_group = QGroupBox("数据分析")
+        analysis_layout = QVBoxLayout()
+        
+        # 股票高低点分析按钮
+        highlow_btn = QPushButton("股票高低点分析")
+        highlow_btn.clicked.connect(lambda: self.show_tab("股票高低点分析", self.add_highlow_tab))
+        analysis_layout.addWidget(highlow_btn)
+        
+        # 指数轮动信号按钮
+        signal_btn = QPushButton("指数轮动信号")
+        signal_btn.clicked.connect(lambda: self.show_tab("指数轮动信号", self.add_signal_tab))
+        analysis_layout.addWidget(signal_btn)
+        
+        # 估值分析按钮
+        valuation_btn = QPushButton("估值分析")
+        valuation_btn.clicked.connect(lambda: self.show_tab("估值分析", self.add_valuation_tab))
+        analysis_layout.addWidget(valuation_btn)
+        
+        # 波动率分析按钮
+        volatility_btn = QPushButton("波动率分析")
+        volatility_btn.clicked.connect(lambda: self.show_tab("波动率分析", self.add_volatility_tab))
+        analysis_layout.addWidget(volatility_btn)
+        
+        # 成交分析按钮
+        volume_btn = QPushButton("沪深两市成交分析")
+        volume_btn.clicked.connect(lambda: self.show_tab("沪深两市成交分析", self.add_volume_tab))
+        analysis_layout.addWidget(volume_btn)
+        
+        analysis_group.setLayout(analysis_layout)
+        layout.addWidget(analysis_group)
+        
+        # 实时行情类功能
+        realtime_group = QGroupBox("实时行情")
+        realtime_layout = QVBoxLayout()
+        
+        # 黄金现货实时行情按钮
+        gold_btn = QPushButton("黄金现货实时行情")
+        gold_btn.clicked.connect(lambda: self.show_tab("黄金现货实时行情", self.add_gold_tab))
+        realtime_layout.addWidget(gold_btn)
+        
+        # A50实时行情按钮
+        a50_btn = QPushButton("A50实时行情")
+        a50_btn.clicked.connect(lambda: self.show_tab("A50实时行情", self.add_A50_tab))
+        realtime_layout.addWidget(a50_btn)
+        
+        # 比特币实时行情按钮
+        btc_btn = QPushButton("比特币实时行情")
+        btc_btn.clicked.connect(lambda: self.show_tab("比特币实时行情", self.add_btc_tab))
+        realtime_layout.addWidget(btc_btn)
+        # 人民币美元离岸汇率实时行情按钮
+        uc00_btn = QPushButton("人民币美元离岸汇率实时行情")
+        uc00_btn.clicked.connect(lambda: self.show_tab("人民币美元离岸汇率行情", self.add_uc00_tab))
+        realtime_layout.addWidget(uc00_btn)
+
+        # 纳斯达克 100 实时行情按钮
+        nq_btn = QPushButton("纳斯达克 100 实时行情")
+        nq_btn.clicked.connect(lambda: self.show_tab("纳斯达克 100 行情", self.add_nq_tab))
+        realtime_layout.addWidget(nq_btn)
+
+        # 标普 500 实时行情按钮
+        es_btn = QPushButton("标普 500 实时行情")
+        es_btn.clicked.connect(lambda: self.show_tab("标普 500 行情", self.add_es_tab))
+        realtime_layout.addWidget(es_btn)
+
+        # 道琼斯指数股指期货实时行情按钮
+        ym_btn = QPushButton("道琼斯指数股指期货实时行情")
+        ym_btn.clicked.connect(lambda: self.show_tab("道琼斯指数股指期货行情", self.add_ym_tab))
+        realtime_layout.addWidget(ym_btn)
+
+        realtime_group.setLayout(realtime_layout)
+        layout.addWidget(realtime_group)
+
+        # 股票实时行情按钮
+        stock_realtime_btn = QPushButton("股票实时行情")
+        # 修改此处调用方式
+        stock_realtime_btn.clicked.connect(lambda: self.show_tab("股票实时行情", lambda: add_stock_realtime_tab(self)))
+        realtime_layout.addWidget(stock_realtime_btn)
+        
+        realtime_group.setLayout(realtime_layout)
+        layout.addWidget(realtime_group)
+        
+        tab.setLayout(layout)
+        self.tabs.addTab(tab, "首页")
+
+    def show_tab(self, tab_name, add_tab_func):
+        """显示指定标签页"""
+        # 检查标签页是否已存在
+        for i in range(self.tabs.count()):
+            if self.tabs.tabText(i) == tab_name:
+                self.tabs.setCurrentIndex(i)
+                return
+        
+        # 若不存在则添加新标签页
+        add_tab_func()
+        self.tabs.setCurrentIndex(self.tabs.count() - 1)
+
     def add_highlow_tab(self):
         """股票高低点分析标签页"""
         tab = QWidget()
@@ -505,538 +612,105 @@ class FinancialAnalysisApp(QMainWindow):
         self.vol_figure.clear()
         self.vol_canvas.draw()
 
+
     def add_gold_tab(self):
         """黄金现货实时行情标签页"""
-        try:
-            tab = QWidget()
-            layout = QVBoxLayout()
-            
-            # 创建结果显示区域
-            self.gold_table = QTextEdit()
-            self.gold_table.setReadOnly(True)
-            layout.addWidget(self.gold_table)
-            
-            # 控制区域
-            control_layout = QHBoxLayout()
-            self.gold_monitor_btn = QPushButton("开启监控")
-            self.gold_monitor_btn.clicked.connect(self.toggle_gold_monitoring)
-            control_layout.addWidget(self.gold_monitor_btn)
-            
-            reset_btn = QPushButton("重置")
-            reset_btn.clicked.connect(self.reset_gold_tab)
-            control_layout.addWidget(reset_btn)
-            layout.addLayout(control_layout)
-            
-            # 图表区域
-            self.gold_figure = plt.figure()
-            self.gold_canvas = FigureCanvas(self.gold_figure)
-            layout.addWidget(self.gold_canvas)
-            tab.setLayout(layout)
-            self.gold_tab_index = self.tabs.addTab(tab, "黄金现货行情")
-            
-            # 初始化黄金实时数据对象
-            self.gold_table.append("黄金行情接口准备就绪")
-            if not w.isconnected():
-                w.start()
-                
-            self.gold_realtime = GoldRealtime()
-            self.gold_realtime.register_callback(self.update_gold_display)
-            
-        except Exception as e:
-            import traceback
-            error_msg = f"初始化黄金行情标签页时出错:\n{str(e)}\n{traceback.format_exc()}"
-            print(error_msg)  # 控制台输出
-            QMessageBox.critical(self, "初始化错误", f"无法初始化黄金行情:\n{str(e)}")
-    
-    def reset_gold_tab(self):
-        """重置黄金行情标签页"""
-        self.gold_figure.clear()
-        self.gold_canvas.draw()
-        self.gold_table.clear()
-        if hasattr(self, 'gold_subscribed') and self.gold_subscribed:
-            # 修改为直接调用停止更新方法
-            self.stop_gold_updates()  
-    
-    def handle_tab_changed(self, index):
-        """处理标签页切换事件"""
-        if hasattr(self, 'gold_tab_index') and index == self.gold_tab_index:
-            # 切换到黄金标签页时自动开始
-            if not hasattr(self, 'gold_subscribed') or not self.gold_subscribed:
-                self.start_gold_updates()
-                self.gold_monitor_btn.setText("停止监控")
-        elif hasattr(self, 'gold_subscribed') and self.gold_subscribed:
-            # 切换到其他标签页时自动停止
-            self.stop_gold_updates()
-            self.gold_monitor_btn.setText("开启监控")
-            
-    def toggle_gold_monitoring(self):
-        """切换黄金监控状态"""
-        if not hasattr(self, 'gold_subscribed'):
-            self.gold_subscribed = False
-            
-        if not self.gold_subscribed:
-            self.start_gold_updates()
-            self.gold_monitor_btn.setText("停止监控")
-        else:
-            self.stop_gold_updates()
-            # 修改为正确的按钮属性名
-            self.gold_monitor_btn.setText("开启监控")  
-            
-    def start_gold_updates(self):
-        """启动黄金行情更新"""
-        try:
-            if not w.isconnected():
-                w.start()
-                if not w.isconnected():
-                    raise ConnectionError("WindPy连接失败")
-            
-            self.gold_subscribed = True
-            self.gold_realtime.start()
-            self.gold_table.append("黄金行情监控已启动...")
-            
-        except Exception as e:
-            self.gold_table.append(f"启动失败: {str(e)}")
-            self.gold_subscribed = False
-            QMessageBox.critical(self, "错误", f"启动黄金行情失败:\n{str(e)}")
-            
-    def stop_gold_updates(self):
-        """停止黄金行情更新"""
-        if hasattr(self, 'gold_subscribed') and self.gold_subscribed:
-            self.gold_realtime.stop()
-            self.gold_subscribed = False
-            self.gold_table.append("黄金行情监控已停止")
-    
-    def update_gold_display(self, data):
-        """更新黄金行情显示"""
-        try:
-            if not data or not isinstance(data, dict):
-                self.gold_table.append("无效数据格式")
-                return
-                
-            # 验证数据字段
-            required_fields = ['time', 'close', 'chg', 'pct_chg']
-            if not all(field in data for field in required_fields):
-                self.gold_table.append("数据字段不完整")
-                return
-                
-            if not data['time']:
-                self.gold_table.append("无有效时间数据")
-                return
-                
-            # 获取最新数据点
-            try:
-                latest_time = data['time'][-1] if data['time'] else "N/A"
-                latest_close = data['close'][-1] if data['close'] else "N/A"
-                latest_chg = data['chg'][-1] if data['chg'] else "N/A"
-                latest_pct = data['pct_chg'][-1] if data['pct_chg'] else "N/A"
-            except (IndexError, TypeError) as e:
-                self.gold_table.append(f"数据解析错误: {str(e)}")
-                return
-                
-            # 更新图表
-            try:
-                self.gold_figure.clear()
-                ax = self.gold_figure.add_subplot(111)
-                
-                if data['time'] and data['close']:
-                    ax.plot(data['time'], data['close'], label=f'价格 (最新: {latest_close})')
-                    ax.set_title(f'黄金现货价格走势 (纽约时间 {latest_time})')
-                    ax.set_ylabel('价格')
-                    ax.legend()
-                    ax.grid(True)
-                
-                # Auto-format date labels based on time range
-                if len(data['time']) > 0:
-                    time_range = len(data['time'])
-                    if time_range > 20:  # Long time range - show fewer labels
-                        ax.xaxis.set_major_locator(plt.MaxNLocator(6))
-                    plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
-                
-                # Adjust layout with padding
-                self.gold_figure.tight_layout(pad=2.0, h_pad=1.0)
-                self.gold_canvas.draw()
-            except Exception as e:
-                self.gold_table.append(f"图表更新失败: {str(e)}")
-                
-            # 更新数据表格
-            self.gold_table.clear()
-            self.gold_table.append("=== 黄金现货实时数据 ===")
-            self.gold_table.append(f"更新时间(北京): {latest_time}")
-            self.gold_table.append(f"最新价格: {latest_close}")
-            self.gold_table.append(f"涨跌额: {latest_chg}")
-            self.gold_table.append(f"涨跌幅: {latest_pct}")
-            
-            if data['time'] and data['close'] and data['chg'] and data['pct_chg']:
-                self.gold_table.append("\n=== 历史数据 ===")
-                # 显示最近5条数据
-                for i in range(min(10, len(data['time']))):
-                    idx = -1 - i  # 从最新到最旧
-                    self.gold_table.append(
-                        f"{data['time'][idx]} | 价格: {data['close'][idx]} | "
-                        f"涨跌: {data['chg'][idx]} | 涨跌幅: {data['pct_chg'][idx]}"
-                    )
-                    
-        except Exception as e:
-            import traceback
-            error_msg = f"更新显示时出错:\n{str(e)}\n{traceback.format_exc()}"
-            print(error_msg)
-            self.gold_table.append("处理数据时发生错误")
-
+        self.gold_tab_index = add_market_tab(
+            "黄金现货行情",
+            GoldRealtime,
+            "gold_table",
+            "gold_figure",
+            "gold_canvas",
+            "gold_monitor_btn",
+            "gold_subscribed",
+            update_market_display,
+            self
+        )
 
     def add_btc_tab(self):
         """比特币实时行情标签页"""
-        try:
-            tab = QWidget()
-            layout = QVBoxLayout()
-            
-            # 创建结果显示区域
-            self.btc_table = QTextEdit()
-            self.btc_table.setReadOnly(True)
-            layout.addWidget(self.btc_table)
-            
-            # 控制区域
-            control_layout = QHBoxLayout()
-            self.btc_monitor_btn = QPushButton("开启监控")
-            self.btc_monitor_btn.clicked.connect(self.toggle_btc_monitoring)
-            control_layout.addWidget(self.btc_monitor_btn)
-            
-            reset_btn = QPushButton("重置")
-            reset_btn.clicked.connect(self.reset_btc_tab)
-            control_layout.addWidget(reset_btn)
-            layout.addLayout(control_layout)
-            
-            # 图表区域
-            self.btc_figure = plt.figure()
-            self.btc_canvas = FigureCanvas(self.btc_figure)
-            layout.addWidget(self.btc_canvas)
-            tab.setLayout(layout)
-            self.btc_tab_index = self.tabs.addTab(tab, "比特币行情")
-            
-            # 初始化比特币实时数据对象
-            self.btc_table.append("比特币行情接口准备就绪")
-            from WindPy import w
-            if not w.isconnected():
-                w.start()
-                
-            self.btc_realtime = BtcRealtime()
-            self.btc_realtime.register_callback(self.update_btc_display)
-            
-        except Exception as e:
-            import traceback
-            error_msg = f"初始化比特币行情标签页时出错:\n{str(e)}\n{traceback.format_exc()}"
-            print(error_msg)  # 控制台输出
-            QMessageBox.critical(self, "初始化错误", f"无法初始化比特币行情:\n{str(e)}")
+        self.btc_tab_index = add_market_tab(
+            "比特币行情",
+            BtcRealtime,
+            "btc_table",
+            "btc_figure",
+            "btc_canvas",
+            "btc_monitor_btn",
+            "btc_subscribed",
+            update_market_display,
+            self
+        )
 
-
-    
-    def reset_btc_tab(self):
-        """重置比特币行情标签页"""
-        self.btc_figure.clear()
-        self.btc_canvas.draw()
-        self.btc_table.clear()
-        if hasattr(self, 'btc_subscribed') and self.btc_subscribed:
-            self.stop_btc_updates()  # 修改为正确的方法调用
-    
-    def handle_tab_changed(self, index):
-        """处理标签页切换事件"""
-        if hasattr(self, 'btc_tab_index') and index == self.btc_tab_index:
-            # 切换到比特币标签页时自动开始
-            if not hasattr(self, 'btc_subscribed') or not self.btc_subscribed:
-                self.start_btc_updates()
-                self.btc_monitor_btn.setText("停止监控")
-        elif hasattr(self, 'btc_subscribed') and self.btc_subscribed:
-            # 切换到其他标签页时自动停止
-            self.stop_btc_updates()
-            self.btc_monitor_btn.setText("开启监控")
-            
-    def toggle_btc_monitoring(self):
-        """切换比特币监控状态"""
-        if not hasattr(self, 'btc_subscribed'):
-            self.btc_subscribed = False
-            
-        if not self.btc_subscribed:
-            self.start_btc_updates()
-            self.btc_monitor_btn.setText("停止监控")
-        else:
-            self.stop_btc_updates()
-            self.btc_monitor_btn.setText("开启监控")
-            
-    def start_btc_updates(self):
-        """启动比特币行情更新"""
-        try:
-            if not w.isconnected():
-                w.start()
-                if not w.isconnected():
-                    raise ConnectionError("WindPy连接失败")
-            
-            self.btc_subscribed = True
-            self.btc_realtime.start()
-            self.btc_table.append("比特币行情监控已启动...")
-            
-        except Exception as e:
-            self.btc_table.append(f"启动失败: {str(e)}")
-            self.btc_subscribed = False
-            QMessageBox.critical(self, "错误", f"启动比特币行情失败:\n{str(e)}")
-            
-    def stop_btc_updates(self):
-        """停止比特币行情更新"""
-        if hasattr(self, 'btc_subscribed') and self.btc_subscribed:
-            self.btc_realtime.stop()
-            self.btc_subscribed = False
-            self.btc_table.append("比特币行情监控已停止")
-    
-    def update_btc_display(self, data):
-        """更新比特币行情显示"""
-        try:
-            if not data or not isinstance(data, dict):
-                self.btc_table.append("无效数据格式")
-                return
-                
-            # 验证数据字段
-            required_fields = ['time', 'close', 'chg', 'pct_chg']
-            if not all(field in data for field in required_fields):
-                self.btc_table.append("数据字段不完整")
-                return
-                
-            if not data['time']:
-                self.btc_table.append("无有效时间数据")
-                return
-                
-            # 获取最新数据点
-            try:
-                latest_time = data['time'][-1] if data['time'] else "N/A"
-                latest_close = data['close'][-1] if data['close'] else "N/A"
-                latest_chg = data['chg'][-1] if data['chg'] else "N/A"
-                latest_pct = data['pct_chg'][-1] if data['pct_chg'] else "N/A"
-            except (IndexError, TypeError) as e:
-                self.btc_table.append(f"数据解析错误: {str(e)}")
-                return
-                
-            # 更新图表
-            try:
-                self.btc_figure.clear()
-                ax = self.btc_figure.add_subplot(111)
-                
-                if data['time'] and data['close']:
-                    ax.plot(data['time'], data['close'], label=f'价格 (最新: {latest_close})')
-                    ax.set_title(f'比特币价格走势 (芝加哥时间 {latest_time})')
-                    ax.set_ylabel('价格')
-                    ax.legend()
-                    ax.grid(True)
-                
-                # Auto-format date labels based on time range
-                if len(data['time']) > 0:
-                    time_range = len(data['time'])
-                    if time_range > 20:  # Long time range - show fewer labels
-                        ax.xaxis.set_major_locator(plt.MaxNLocator(6))
-                    plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
-                
-                # Adjust layout with padding
-                self.btc_figure.tight_layout(pad=2.0, h_pad=1.0)
-                self.btc_canvas.draw()
-            except Exception as e:
-                self.btc_table.append(f"图表更新失败: {str(e)}")
-                
-            # 更新数据表格
-            self.btc_table.clear()
-            self.btc_table.append("=== 比特币实时数据 ===")
-            self.btc_table.append(f"更新时间(北京): {latest_time}")
-            self.btc_table.append(f"最新价格: {latest_close}")
-            self.btc_table.append(f"涨跌额: {latest_chg}")
-            self.btc_table.append(f"涨跌幅: {latest_pct}")
-            
-            if data['time'] and data['close'] and data['chg'] and data['pct_chg']:
-                self.btc_table.append("\n=== 历史数据 ===")
-                # 显示最近5条数据
-                for i in range(min(10, len(data['time']))):
-                    idx = -1 - i  # 从最新到最旧
-                    self.btc_table.append(
-                        f"{data['time'][idx]} | 价格: {data['close'][idx]} | "
-                        f"涨跌: {data['chg'][idx]} | 涨跌幅: {data['pct_chg'][idx]}"
-                    )
-                    
-        except Exception as e:
-            import traceback
-            error_msg = f"更新显示时出错:\n{str(e)}\n{traceback.format_exc()}"
-            print(error_msg)
-            self.btc_table.append("处理数据时发生错误")
-
-
+    # 其他类似的实时行情标签页方法也需要做同样的修改
     def add_A50_tab(self):
-        """A50 实时行情标签页"""
-        try:
-            tab = QWidget()
-            layout = QVBoxLayout()
-            
-            # 创建结果显示区域
-            self.A50_table = QTextEdit()
-            self.A50_table.setReadOnly(True)
-            layout.addWidget(self.A50_table)
-            
-            # 控制区域
-            control_layout = QHBoxLayout()
-            self.A50_monitor_btn = QPushButton("开启监控")
-            self.A50_monitor_btn.clicked.connect(self.toggle_A50_monitoring)
-            control_layout.addWidget(self.A50_monitor_btn)
-            
-            reset_btn = QPushButton("重置")
-            reset_btn.clicked.connect(self.reset_A50_tab)
-            control_layout.addWidget(reset_btn)
-            layout.addLayout(control_layout)
-            
-            # 图表区域
-            self.A50_figure = plt.figure()
-            self.A50_canvas = FigureCanvas(self.A50_figure)
-            layout.addWidget(self.A50_canvas)
-            tab.setLayout(layout)
-            self.A50_tab_index = self.tabs.addTab(tab, "A50 实时行情")
-            
-            # 初始化 A50 实时数据对象
-            self.A50_table.append("A50 行情接口准备就绪")
-            from WindPy import w
-            if not w.isconnected():
-                w.start()
-                
-            self.A50_realtime = A50Realtime()
-            self.A50_realtime.register_callback(self.update_A50_display)
-            
-        except Exception as e:
-            import traceback
-            error_msg = f"初始化 A50 行情标签页时出错:\n{str(e)}\n{traceback.format_exc()}"
-            print(error_msg)  # 控制台输出
-            QMessageBox.critical(self, "初始化错误", f"无法初始化 A50 行情:\n{str(e)}")
-    
-    def reset_A50_tab(self):
-        """重置 A50 行情标签页"""
-        self.A50_figure.clear()
-        self.A50_canvas.draw()
-        self.A50_table.clear()
-        if hasattr(self, 'A50_subscribed') and self.A50_subscribed:
-            self.stop_A50_updates()  # 修改为正确的方法调用
-    
-    def handle_tab_changed(self, index):
-        """处理标签页切换事件"""
-        if hasattr(self, 'A50_tab_index') and index == self.A50_tab_index:
-            # 切换到 A50 标签页时自动开始
-            if not hasattr(self, 'A50_subscribed') or not self.A50_subscribed:
-                self.start_A50_updates()
-                self.A50_monitor_btn.setText("停止监控")
-        elif hasattr(self, 'A50_subscribed') and self.A50_subscribed:
-            # 切换到其他标签页时自动停止
-            self.stop_A50_updates()
-            self.A50_monitor_btn.setText("开启监控")
-            
-    def toggle_A50_monitoring(self):
-        """切换 A50 监控状态"""
-        if not hasattr(self, 'A50_subscribed'):
-            self.A50_subscribed = False
-            
-        if not self.A50_subscribed:
-            self.start_A50_updates()
-            self.A50_monitor_btn.setText("停止监控")
-        else:
-            self.stop_A50_updates()
-            self.A50_monitor_btn.setText("开启监控")
-            
-    def start_A50_updates(self):
-        """启动 A50 行情更新"""
-        try:
-            if not w.isconnected():
-                w.start()
-                if not w.isconnected():
-                    raise ConnectionError("WindPy连接失败")
-            
-            self.A50_subscribed = True
-            self.A50_realtime.start()
-            self.A50_table.append("A50 行情监控已启动...")
-            
-        except Exception as e:
-            self.A50_table.append(f"启动失败: {str(e)}")
-            self.A50_subscribed = False
-            QMessageBox.critical(self, "错误", f"启动 A50 行情失败:\n{str(e)}")
-            
-    def stop_A50_updates(self):
-        """停止 A50 行情更新"""
-        if hasattr(self, 'A50_subscribed') and self.A50_subscribed:
-            self.A50_realtime.stop()
-            self.A50_subscribed = False
-            self.A50_table.append("A50 行情监控已停止")
-    
-    def update_A50_display(self, data):
-        """更新 A50 行情显示"""
-        try:
-            if not data or not isinstance(data, dict):
-                self.A50_table.append("无效数据格式")
-                return
-                
-            # 验证数据字段
-            required_fields = ['time', 'close', 'chg', 'pct_chg']
-            if not all(field in data for field in required_fields):
-                self.A50_table.append("数据字段不完整")
-                return
-                
-            if not data['time']:
-                self.A50_table.append("无有效时间数据")
-                return
-                
-            # 获取最新数据点
-            try:
-                latest_time = data['time'][-1] if data['time'] else "N/A"
-                latest_close = data['close'][-1] if data['close'] else "N/A"
-                latest_chg = data['chg'][-1] if data['chg'] else "N/A"
-                latest_pct = data['pct_chg'][-1] if data['pct_chg'] else "N/A"
-            except (IndexError, TypeError) as e:
-                self.A50_table.append(f"数据解析错误: {str(e)}")
-                return
-                
-            # 更新图表
-            try:
-                self.A50_figure.clear()
-                ax = self.A50_figure.add_subplot(111)
-                
-                if data['time'] and data['close']:
-                    ax.plot(data['time'], data['close'], label=f'价格 (最新: {latest_close})')
-                    ax.set_title(f'A50 实时价格走势 (北京时间 {latest_time})')
-                    ax.set_ylabel('价格')
-                    ax.legend()
-                    ax.grid(True)
-                
-                # Auto-format date labels based on time range
-                if len(data['time']) > 0:
-                    time_range = len(data['time'])
-                    if time_range > 20:  # Long time range - show fewer labels
-                        ax.xaxis.set_major_locator(plt.MaxNLocator(6))
-                    plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
-                
-                # Adjust layout with padding
-                self.A50_figure.tight_layout(pad=2.0, h_pad=1.0)
-                self.A50_canvas.draw()
-            except Exception as e:
-                self.A50_table.append(f"图表更新失败: {str(e)}")
-                
-            # 更新数据表格
-            self.A50_table.clear()
-            self.A50_table.append("=== A50 实时数据 ===")
-            self.A50_table.append(f"更新时间(北京): {latest_time}")
-            self.A50_table.append(f"最新价格: {latest_close}")
-            self.A50_table.append(f"涨跌额: {latest_chg}")
-            self.A50_table.append(f"涨跌幅: {latest_pct}")
-            
-            if data['time'] and data['close'] and data['chg'] and data['pct_chg']:
-                self.A50_table.append("\n=== 历史数据 ===")
-                # 显示最近5条数据
-                for i in range(min(10, len(data['time']))):
-                    idx = -1 - i  # 从最新到最旧
-                    self.A50_table.append(
-                        f"{data['time'][idx]} | 价格: {data['close'][idx]} | "
-                        f"涨跌: {data['chg'][idx]} | 涨跌幅: {data['pct_chg'][idx]}"
-                    )
-                    
-        except Exception as e:
-            import traceback
-            error_msg = f"更新显示时出错:\n{str(e)}\n{traceback.format_exc()}"
-            print(error_msg)
-            self.A50_table.append("处理数据时发生错误")
+        """A50实时行情标签页"""
+        self.A50_tab_index = add_market_tab(
+            "A50行情",
+            A50Realtime,
+            "A50_table",
+            "A50_figure",
+            "A50_canvas",
+            "A50_monitor_btn",
+            "A50_subscribed",
+            update_market_display,
+            self
+        )
+
+    def add_uc00_tab(self):
+        """人民币美元离岸汇率实时行情标签页"""
+        self.uc00_tab_index = add_market_tab(
+            "人民币美元离岸汇率行情",
+            Uc00Realtime,
+            "uc00_table",
+            "uc00_figure",
+            "uc00_canvas",
+            "uc00_monitor_btn",
+            "uc00_subscribed",
+            update_market_display,
+            self
+        )
+
+    def add_nq_tab(self):
+        """纳斯达克 100 实时行情标签页"""
+        self.nq_tab_index = add_market_tab(
+            "纳斯达克 100 行情",
+            NqRealtime,
+            "nq_table",
+            "nq_figure",
+            "nq_canvas",
+            "nq_monitor_btn",
+            "nq_subscribed",
+            update_market_display,
+            self
+        )
+
+    def add_es_tab(self):
+        """标普 500 实时行情标签页"""
+        self.es_tab_index = add_market_tab(
+            "标普 500 行情",
+            EsRealtime,
+            "es_table",
+            "es_figure",
+            "es_canvas",
+            "es_monitor_btn",
+            "es_subscribed",
+            update_market_display,
+            self
+        )
+
+    def add_ym_tab(self):
+        """道琼斯指数股指期货实时行情标签页"""
+        self.ym_tab_index = add_market_tab(
+            "道琼斯指数股指期货行情",
+            YmRealtime,
+            "ym_table",
+            "ym_figure",
+            "ym_canvas",
+            "ym_monitor_btn",
+            "ym_subscribed",
+            update_market_display,
+            self
+        )
 
 
     def run_volume_analysis(self):
@@ -1135,239 +809,12 @@ class FinancialAnalysisApp(QMainWindow):
             ax.text(0.5, 0.5, f'图表错误: {str(e)}', ha='center', va='center')
             self.volume_canvas.draw()
 
-    def add_stock_realtime_tab(self):
-        """实时行情标签页"""
-        try:
-            tab = QWidget()
-            layout = QVBoxLayout()
-            
-            # 控制区域
-            control_layout = QHBoxLayout()
-            
-            # 股票代码输入
-            self.stock_code_input = QLineEdit()
-            self.stock_code_input.setPlaceholderText("输入股票代码,如600941.SH")
-            control_layout.addWidget(self.stock_code_input)
-            
-            # 添加按钮
-            self.add_stock_btn = QPushButton("添加监控")
-            self.add_stock_btn.clicked.connect(self.add_stock_monitor)
-            control_layout.addWidget(self.add_stock_btn)
-            
-            # 刷新按钮
-            self.refresh_btn = QPushButton("手动刷新")
-            self.refresh_btn.clicked.connect(self.refresh_stock_data)
-            control_layout.addWidget(self.refresh_btn)
 
-            # 新增：股票选择下拉列表
-            self.stock_selector = QComboBox()
-            self.stock_selector.currentTextChanged.connect(self.change_stock_chart)
-            control_layout.addWidget(self.stock_selector)
-            
-            layout.addLayout(control_layout)
-            
-            # 表格区域
-            self.stock_table = QTableWidget()
-            self.stock_table.setColumnCount(8)
-            self.stock_table.setHorizontalHeaderLabels(["代码", "最新价", "涨跌额", "涨跌幅", "最高价", "最低价", "日期", "时间"])
-            self.stock_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-            layout.addWidget(self.stock_table)
 
-            # 图表区域
-            self.stock_figure = plt.figure()
-            self.stock_canvas = FigureCanvas(self.stock_figure)
-            layout.addWidget(self.stock_canvas)
-            
-            tab.setLayout(layout)
-            self.stock_realtime_tab_index = self.tabs.addTab(tab, "实时行情监控")
-            
-            # 初始化数据
-            self.monitored_stocks = {}
-            self.stock_history = {}  # 存储历史数据用于绘图
-            if not w.isconnected():
-                w.start()
-                
-            # 定时器更新时间
-            self.stock_timer = QTimer()
-            self.stock_timer.timeout.connect(self.update_stock_data)
-            self.stock_timer.start(3000)  # 3秒刷新一次
-            
-        except Exception as e:
-            QMessageBox.critical(self, "初始化错误", f"无法初始化股票实时行情:\n{str(e)}")
 
-    def add_stock_monitor(self):
-        """添加行情监控"""
-        code = self.stock_code_input.text().strip()
-        if code and code not in self.monitored_stocks:
-            self.monitored_stocks[code] = {
-                'rt_last': 0,
-                'rt_chg': 0, 
-                'rt_pct_chg': 0,
-                'rt_high': 0,
-                'rt_low': 0,
-                'history': []  # 存储历史数据用于绘图
-            }
-            self.update_stock_table()
-            self.update_stock_data(code)
-            # 新增：将新添加的股票代码添加到下拉列表中
-            self.stock_selector.addItem(code)
-
-    def change_stock_chart(self, code):
-        """切换显示的股票图表"""
-        if code:
-            self.update_stock_chart(code)
-
-    def update_stock_table(self):
-        """更新股票表格数据"""
-        self.stock_table.setRowCount(len(self.monitored_stocks))
-        for row, (code, data) in enumerate(self.monitored_stocks.items()):
-            self.stock_table.setItem(row, 0, QTableWidgetItem(code))
-            self.stock_table.setItem(row, 1, QTableWidgetItem(f"{data['rt_last']:.2f}"))
-            self.stock_table.setItem(row, 2, QTableWidgetItem(f"{data['rt_chg']:.2f}"))
-            self.stock_table.setItem(row, 3, QTableWidgetItem(f"{data['rt_pct_chg']:.2f}%"))
-            self.stock_table.setItem(row, 4, QTableWidgetItem(f"{data['rt_high']:.2f}"))
-            self.stock_table.setItem(row, 5, QTableWidgetItem(f"{data['rt_low']:.2f}"))
-            
-            # Format date from float YYYYMMDD to YYYY-MM-DD
-            if 'rt_date' in data:
-                date_str = f"{int(data['rt_date']):08d}"
-                formatted_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
-                self.stock_table.setItem(row, 6, QTableWidgetItem(formatted_date))
-            else:
-                self.stock_table.setItem(row, 6, QTableWidgetItem("N/A"))
-            
-            # Format time from float HHMMSS to HH:MM:SS
-            if 'rt_time' in data:
-                time_str = f"{int(data['rt_time']):06d}"
-                formatted_time = f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
-                self.stock_table.setItem(row, 7, QTableWidgetItem(formatted_time))
-            else:
-                self.stock_table.setItem(row, 7, QTableWidgetItem("N/A"))
-            
-
-        
-    def update_stock_data(self, code=None):
-        """更新股票数据"""
-        if not w.isconnected():
-            w.start()
-            
-        codes = [code] if code else list(self.monitored_stocks.keys())
-        
-        for code in codes:
-            try:
-                df = get_realtime_data(code)
-                if df is not None and not df.empty:
-                    # 更新实时数据 - 处理长格式DataFrame
-                    stock_data = df[df['StockCode'] == code]
-                    for _, row in stock_data.iterrows():
-                        field = row['Field'].lower()  # Convert to lowercase to match dict keys
-                        value = row['Value']
-                        if field == 'rt_last':
-                            self.monitored_stocks[code]['rt_last'] = value
-                        elif field == 'rt_chg':
-                            self.monitored_stocks[code]['rt_chg'] = value
-                        elif field == 'rt_pct_chg':
-                            self.monitored_stocks[code]['rt_pct_chg'] = value
-                        elif field == 'rt_high':
-                            self.monitored_stocks[code]['rt_high'] = value
-                        elif field == 'rt_low':
-                            self.monitored_stocks[code]['rt_low'] = value
-                        elif field == 'rt_date':
-                            self.monitored_stocks[code]['rt_date'] = value
-                        elif field == 'rt_time':
-                            self.monitored_stocks[code]['rt_time'] = value
-                    
-                    # 记录历史数据
-                    # 修改为使用获取到的 rtdate 和 rttime
-                    rt_time_str = self.monitored_stocks[code]['rt_time']
-                    rt_date_str = self.monitored_stocks[code]['rt_date']  # 假设存在 rtdate 字段
-
-                    try:
-                        if isinstance(rt_time_str, float):
-                            rt_time_str = str(int(rt_time_str)).zfill(6)
-                        else:
-                            rt_time_str = str(rt_time_str).zfill(6)
-                        time_obj = datetime.time(int(rt_time_str[:2]), int(rt_time_str[2:4]), int(rt_time_str[4:6]))
-
-                                                # 将 rt_date_str 转换为字符串
-                        rt_date_str = str(int(rt_date_str)) if isinstance(rt_date_str, float) else rt_date_str
-                        date_obj = datetime.datetime.strptime(rt_date_str, '%Y%m%d').date()
-                        rt_time = datetime.datetime.combine(date_obj, time_obj)
-                    except ValueError:
-                        print(f"无法解析时间 {rt_date_str} {rt_time_str}，使用当前时间替代")
-                        rt_time = datetime.datetime.now()
-                    self.monitored_stocks[code]['history'].append({
-                        'time': rt_time,
-                        'price': self.monitored_stocks[code]['rt_last']
-                    })
-                    
-                    # 保留最近100条数据
-                    if len(self.monitored_stocks[code]['history']) > 100:
-                        self.monitored_stocks[code]['history'] = self.monitored_stocks[code]['history'][-100:]
-                    
-                    # 更新图表
-                    self.update_stock_chart(code)
-            except Exception as e:
-                print(f"更新股票{code}数据失败: {str(e)}")
-        
-        self.update_stock_table()
-        
-    def refresh_stock_data(self):
-        """手动刷新股票数据"""
-        self.update_stock_data()
-        
-    def update_stock_chart(self, code):
-        """更新股票图表"""
-        if code not in self.monitored_stocks or not self.monitored_stocks[code]['history']:
-            return
-            
-        history = self.monitored_stocks[code]['history']
-        times = [x['time'] for x in history]
-        prices = [x['price'] for x in history]
-        
-        self.stock_figure.clear()
-        ax = self.stock_figure.add_subplot(111)
-        ax.plot(times, prices, label=f'{code} 价格走势')
-        
-        # 禁用 y 轴的科学计数法
-        ax.ticklabel_format(axis='y', style='plain')
-        
-        ax.set_title(f'{code} 实时价格')
-        ax.set_ylabel('价格')
-        ax.legend()
-        ax.grid(True)
-        
-        # 自动调整时间轴标签
-        if len(times) > 20:
-            ax.xaxis.set_major_locator(plt.MaxNLocator(6))
-        plt.setp(ax.get_xticklabels(), rotation=30, ha='right')
-        
-        self.stock_figure.tight_layout()
-        self.stock_canvas.draw()
-
-    
-class VolumeWorker(QThread):
-    data_ready = pyqtSignal(dict)
-    
-    def run(self):
-        """在后台线程中获取成交数据"""
-        try:
-            data = get_combined_volume_data()
-            self.data_ready.emit(data)
-        except Exception as e:
-            self.data_ready.emit({'error': str(e)})
 
 if __name__ == "__main__":
-    print("Starting application...")  # Debug print
     app = QApplication(sys.argv)
-    print("QApplication created")  # Debug print
-    
     window = FinancialAnalysisApp()
-    print("Main window created")  # Debug print
-    
     window.show()
-    print("Main window shown")  # Debug print
-    
-    ret = app.exec_()
-    print(f"Application exited with code {ret}")  # Debug print
-    sys.exit(ret)
+    sys.exit(app.exec_())

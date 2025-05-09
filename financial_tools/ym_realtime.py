@@ -11,7 +11,7 @@ class YmRealtime(QObject):
         super().__init__()
         self.running = False
         self.interval = 5  # 5秒刷新间隔
-        self.instrument = "ym.cme"  # 道琼斯期货代码
+        self.instrument = "ym.cbt"  # 道琼斯期货代码
         self.fields = "close,chg,pct_chg"  # 需要获取的字段
         self._thread = QThread()
         self.moveToThread(self._thread)
