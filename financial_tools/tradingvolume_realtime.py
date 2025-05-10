@@ -13,14 +13,16 @@ def get_combined_volume_data():
         w.start()
     
     now = datetime.datetime.now()
-    today_date = now.strftime('%Y-%m-%d')
+    # 使用 w.tdaysoffset 获取上一交易日
+    today_date = w.tdaysoffset(0, now.strftime('%Y-%m-%d')).Data[0][0].strftime('%Y-%m-%d')
     today_start = f"{today_date} 09:00:00"
     today_end = f"{today_date} 16:00:00"
     
     sh_today = w.wsi("000001.SH", "amt", today_start, today_end, "")
     sz_today = w.wsi("399001.SZ", "amt", today_start, today_end, "")
     
-    yesterday_date = (now - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    # 使用 w.tdaysoffset 获取上一交易日
+    yesterday_date = w.tdaysoffset(-1, now.strftime('%Y-%m-%d')).Data[0][0].strftime('%Y-%m-%d')
     yesterday_start = f"{yesterday_date} 09:00:00" 
     yesterday_end = f"{yesterday_date} 16:00:00"
     

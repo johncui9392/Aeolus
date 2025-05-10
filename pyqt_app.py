@@ -175,7 +175,11 @@ class FinancialAnalysisApp(QMainWindow):
         
         # 日期选择
         control_layout.addWidget(QLabel("分析日期:"))
-        self.date_edit = QDateEdit(QDate.currentDate())
+        if not w.isconnected():
+            w.start()
+        now = datetime.datetime.now()
+        last_trading_day = w.tdaysoffset(0, now.strftime('%Y-%m-%d')).Data[0][0]
+        self.date_edit = QDateEdit(QDate(last_trading_day.year, last_trading_day.month, last_trading_day.day))
         control_layout.addWidget(self.date_edit)
         
         # 分析按钮
@@ -579,39 +583,7 @@ class FinancialAnalysisApp(QMainWindow):
             QMessageBox.information(self, "波动率指标", info)
             
             
-    
-    def add_volume_tab(self):
-        """成交分析标签页"""
-        tab = QWidget()
-        layout = QVBoxLayout()
-        
-        # 控制区域
-        control_layout = QHBoxLayout()
-        
-        # 刷新按钮
-        self.vol_refresh = QPushButton("提取数据")
-        self.vol_refresh.clicked.connect(self.run_volume_analysis)
-        control_layout.addWidget(self.vol_refresh)
-        
-        # 重置按钮
-        reset_btn = QPushButton("重置")
-        reset_btn.clicked.connect(self.reset_volume_tab)
-        control_layout.addWidget(reset_btn)
-        
-        layout.addLayout(control_layout)
-        
-        # 图表区域
-        self.volume_figure = plt.figure()
-        self.volume_canvas = FigureCanvas(self.volume_figure)
-        layout.addWidget(self.volume_canvas)
-        
-        tab.setLayout(layout)
-        self.tabs.addTab(tab, "沪深两市成交分析")
-        
-    def reset_volume_tab(self):
-        """重置成交分析标签页"""
-        self.vol_figure.clear()
-        self.vol_canvas.draw()
+
 
 
     def add_gold_tab(self):
@@ -713,6 +685,38 @@ class FinancialAnalysisApp(QMainWindow):
             self
         )
 
+    def add_volume_tab(self):
+        """成交分析标签页"""
+        tab = QWidget()
+        layout = QVBoxLayout()
+        
+        # 控制区域
+        control_layout = QHBoxLayout()
+        
+        # 刷新按钮
+        self.vol_refresh = QPushButton("提取数据")
+        self.vol_refresh.clicked.connect(self.run_volume_analysis)
+        control_layout.addWidget(self.vol_refresh)
+        
+        # 重置按钮
+        reset_btn = QPushButton("重置")
+        reset_btn.clicked.connect(self.reset_volume_tab)
+        control_layout.addWidget(reset_btn)
+        
+        layout.addLayout(control_layout)
+        
+        # 图表区域
+        self.volume_figure = plt.figure()
+        self.volume_canvas = FigureCanvas(self.volume_figure)
+        layout.addWidget(self.volume_canvas)
+        
+        tab.setLayout(layout)
+        self.tabs.addTab(tab, "沪深两市成交分析")
+        
+    def reset_volume_tab(self):
+        """重置成交分析标签页"""
+        self.vol_figure.clear()
+        self.vol_canvas.draw()
 
     def run_volume_analysis(self):
         """执行成交分析"""
@@ -811,7 +815,16 @@ class FinancialAnalysisApp(QMainWindow):
             self.volume_canvas.draw()
 
 
-
+class VolumeWorker(QThread):
+    data_ready = pyqtSignal(dict)
+    
+    def run(self):
+        """在后台线程中获取成交数据"""
+        try:
+            data = get_combined_volume_data()
+            self.data_ready.emit(data)
+        except Exception as e:
+            self.data_ready.emit({'error': str(e)})
 
 
 if __name__ == "__main__":
