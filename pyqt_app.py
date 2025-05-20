@@ -19,7 +19,7 @@ rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 
 # Financial tools imports
 from financial_tools.stock_analysis import (
-    getstocklist, return_60dayhighlow, 
+    getstocklist, return_period_highlow, 
     test_last_day_stock_price, highlowautoeye
 )
 from financial_tools.index_signals import index_signal_wind
@@ -179,8 +179,22 @@ class FinancialAnalysisApp(QMainWindow):
             w.start()
         now = datetime.datetime.now()
         last_trading_day = w.tdaysoffset(0, now.strftime('%Y-%m-%d')).Data[0][0]
+        # 检查 last_trading_day 类型，如果是字符串则转换为 datetime 对象
+        if isinstance(last_trading_day, str):
+            last_trading_day = datetime.datetime.strptime(last_trading_day, '%Y-%m-%d')
         self.date_edit = QDateEdit(QDate(last_trading_day.year, last_trading_day.month, last_trading_day.day))
+        # 设置日期选择框的固定宽度
+        fixed_width = 150  # 可以根据实际情况调整
+        self.date_edit.setFixedWidth(fixed_width)
         control_layout.addWidget(self.date_edit)
+        
+        # 新增：天数输入框
+        control_layout.addWidget(QLabel("分析天数:"))
+        self.days_input = QLineEdit()
+        self.days_input.setPlaceholderText("默认60天")
+        # 设置输入框的固定宽度与日期选择框一致
+        self.days_input.setFixedWidth(fixed_width)
+        control_layout.addWidget(self.days_input)
         
         # 分析按钮
         self.analyze_btn = QPushButton("开始分析")
@@ -196,7 +210,7 @@ class FinancialAnalysisApp(QMainWindow):
         
         # 结果显示区域，使用水平布局将两个文本框放在左右两侧
         result_layout = QHBoxLayout()
-        
+    
         self.high_result = QTextEdit()
         self.high_result.setReadOnly(True)
         # 设置字体大小
@@ -217,7 +231,7 @@ class FinancialAnalysisApp(QMainWindow):
         
         tab.setLayout(layout)
         self.tabs.addTab(tab, "股票高低点分析")
-        
+    
     def run_highlow_analysis(self):
         """执行高低点分析"""
         index_code = self.index_combo.currentText()
@@ -227,34 +241,37 @@ class FinancialAnalysisApp(QMainWindow):
         # 获取股票列表
         stockcodelist = getstocklist(index_code)
         
+        # 获取输入的天数，如果未输入则使用默认值60
+        days_text = self.days_input.text()
+        period_days = int(days_text) if days_text.isdigit() else 60
         
         # 计算高低点
-        summit60daydict, trough60daydict = return_60dayhighlow(stockcodelist)
+        high_dict, low_dict = return_period_highlow(stockcodelist, period_days=period_days)
         highresult_list, lowresult_list = test_last_day_stock_price(
-            stockcodelist, summit60daydict, trough60daydict, analysis_date)
+            stockcodelist, high_dict, low_dict, analysis_date)
             
         # 显示结果
         self.high_result.clear()
         self.low_result.clear()
         
         if highresult_list:
-            self.high_result.append(f"<h3>创60日新高股票 ({len(highresult_list)}只)</h3>")
+            self.high_result.append(f"<h3>创{period_days}日新高股票 ({len(highresult_list)}只)</h3>")
             self.high_result.append(f"分析日期: {analysis_date}")
             self.high_result.append("<hr>")
             for code in highresult_list:
                 self.high_result.append(f"<br>{code}<br>")
         else:
-            self.high_result.append("<h3>没有股票创60日新高</h3>")
+            self.high_result.append(f"<h3>没有股票创{period_days}日新高</h3>")
             self.high_result.append("<hr>")
             
         if lowresult_list:
-            self.low_result.append(f"<h3>创60日新低股票 ({len(lowresult_list)}只)</h3>")
+            self.low_result.append(f"<h3>创{period_days}日新低股票 ({len(lowresult_list)}只)</h3>")
             self.low_result.append(f"分析日期: {analysis_date}")
             self.low_result.append("<hr>")
             for code in lowresult_list:
                 self.low_result.append(f"<br>{code}<br>")
         else:
-            self.low_result.append("<h3>没有股票创60日新低</h3>")
+            self.low_result.append(f"<h3>没有股票创{period_days}日新低</h3>")
             self.low_result.append("<hr>")
             
     def reset_highlow_tab(self):

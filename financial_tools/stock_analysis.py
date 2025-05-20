@@ -19,14 +19,19 @@ def getstocklist(windcode):
         print(f"获取成分股异常: {str(e)}")
         return {}
 
-def return_60dayhighlow(stockcodelist):
-    """计算股票60日最高价和最低价(适配WindPy接口)"""
+def return_period_highlow(stockcodelist, period_days=60):
+    """计算股票指定天数内的最高价和最低价(适配WindPy接口)"""
     w.start()
-    summit60daydict = {}
-    trough60daydict = {}
+    high_dict = {}
+    low_dict = {}
     
     end_date = datetime.datetime.now().strftime('%Y-%m-%d')
-    start_date = (datetime.datetime.now() - datetime.timedelta(days=120)).strftime('%Y-%m-%d')
+    # 使用 w.tdaysoffset 函数计算前推指定天数的起始日期
+    start_date_data = w.tdaysoffset(-period_days, end_date, "")
+    if start_date_data.ErrorCode != 0:
+        print(f"计算起始日期失败: {start_date_data.ErrorCode}")
+        return {}, {}
+    start_date = start_date_data.Data[0][0].strftime('%Y-%m-%d')
     
     high_data = w.wsd(",".join(stockcodelist), "high", start_date, end_date, "")
     if high_data.ErrorCode != 0:
@@ -42,14 +47,14 @@ def return_60dayhighlow(stockcodelist):
         high_prices = [float(x) for x in high_data.Data[i] if x is not None]
         low_prices = [float(x) for x in low_data.Data[i] if x is not None]
         
-        if len(high_prices) >= 60:
-            summit60daydict[stockcode] = max(high_prices[-60:])
-            trough60daydict[stockcode] = min(low_prices[-60:])
+        if len(high_prices) >= period_days:
+            high_dict[stockcode] = max(high_prices[-period_days:])
+            low_dict[stockcode] = min(low_prices[-period_days:])
     
-    return summit60daydict, trough60daydict
+    return high_dict, low_dict
 
-def test_last_day_stock_price(stockcodelist, summit60daydict, trough60daydict, date=None):
-    """检测股票最新收盘价是否创60日新高或新低，返回带简称的结果"""
+def test_last_day_stock_price(stockcodelist, high_dict, low_dict, date=None):
+    """检测股票最新收盘价是否创指定周期新高或新低，返回带简称的结果"""
     w.start()
     highresult_list = []
     lowresult_list = []
@@ -75,16 +80,16 @@ def test_last_day_stock_price(stockcodelist, summit60daydict, trough60daydict, d
         if latest_high is None or latest_low is None:
             continue
             
-        if stockcode in summit60daydict and latest_high >= summit60daydict[stockcode]:
+        if stockcode in high_dict and latest_high >= high_dict[stockcode]:
             name = code_to_name.get(stockcode, stockcode)
             highresult_list.append(f"{stockcode}({name})")
-        elif stockcode in trough60daydict and latest_low <= trough60daydict[stockcode]:
+        elif stockcode in low_dict and latest_low <= low_dict[stockcode]:
             name = code_to_name.get(stockcode, stockcode)
             lowresult_list.append(f"{stockcode}({name})")
     
     return highresult_list, lowresult_list
 
-def highlowautoeye(stocklistcode, highresult_list, lowresult_list, email_config=None):
+def highlowautoeye(stocklistcode, highresult_list, lowresult_list, period_days=60, email_config=None):
     """根据股票列表查询股票名称，并统计数量"""
     w.start()
     
@@ -117,7 +122,7 @@ def highlowautoeye(stocklistcode, highresult_list, lowresult_list, email_config=
     
     if email_config:
         report_content = f"""
-        {wind_code}指数60日趋势分析报告
+        {wind_code}指数{period_days}日趋势分析报告
         ------------------------
         报告日期: {report_date}
         新高股票数量: {len(highresult_list)}
@@ -151,12 +156,13 @@ if __name__ == "__main__":
     if hs300_stocks:
         print("示例:", list(hs300_stocks.items())[:3])
     
-    # 测试计算60日高低点
+    # 测试计算指定天数高低点
     if hs300_stocks:
-        print("\n测试计算60日高低点:")
+        print("\n测试计算指定天数高低点:")
         stock_codes = list(hs300_stocks.keys())[:10]  # 测试前10只股票
-        highs, lows = return_60dayhighlow(stock_codes)
+        period_days = 30  # 可自定义天数
+        highs, lows = return_period_highlow(stock_codes, period_days)
         print(f"获取到{len(highs)}只股票的高点, {len(lows)}只股票的低点")
         if highs and lows:
             sample_code = list(highs.keys())[0]
-            print(f"示例股票{sample_code}: 60日最高价={highs[sample_code]}, 60日最低价={lows[sample_code]}")
+            print(f"示例股票{sample_code}: {period_days}日最高价={highs[sample_code]}, {period_days}日最低价={lows[sample_code]}")
