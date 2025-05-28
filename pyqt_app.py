@@ -170,7 +170,25 @@ class FinancialAnalysisApp(QMainWindow):
         # 指数选择
         control_layout.addWidget(QLabel("选择指数:"))
         self.index_combo = QComboBox()
-        self.index_combo.addItems(["000016.SH", "000300.SH", "000905.SH", "000852.SH", "932000.CSI"])
+        
+        # 定义 windcode 到中文简称的映射字典
+        windcode_to_name = {
+            "000016.SH": "上证50",
+            "000300.SH": "沪深300",
+            "000905.SH": "中证500",
+            "000852.SH": "中证1000",
+            "932000.CSI": "中证2000",
+            "1000051463000000": "期货主连"
+        }
+        
+        windcodes = ["000016.SH", "000300.SH", "000905.SH", "000852.SH", "932000.CSI","1000051463000000"]
+        chinese_names = [windcode_to_name.get(code, code) for code in windcodes]
+        
+        self.index_combo.addItems(chinese_names)
+        
+        # 存储映射关系，方便后续使用
+        self.windcode_mapping = dict(zip(chinese_names, windcodes))
+        
         control_layout.addWidget(self.index_combo)
         
         # 日期选择
@@ -234,7 +252,11 @@ class FinancialAnalysisApp(QMainWindow):
     
     def run_highlow_analysis(self):
         """执行高低点分析"""
-        index_code = self.index_combo.currentText()
+        # 获取选中的中文简称
+        selected_name = self.index_combo.currentText()
+        # 通过映射关系获取对应的 windcode
+        index_code = self.windcode_mapping.get(selected_name, selected_name)
+        
         analysis_date = self.date_edit.date().toString("yyyy-MM-dd")
         if not w.isconnected():
             w.start()

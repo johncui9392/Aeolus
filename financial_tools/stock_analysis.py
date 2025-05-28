@@ -4,16 +4,26 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 
-def getstocklist(windcode):
-    """获取指数成分股列表(适配WindPy接口)返回{代码:简称}字典"""
+def getstocklist(input_code):
+    """尝试通过指数代码或板块ID获取成分股列表(适配WindPy接口)返回{代码:简称}字典"""
     try:
         import datetime
         current_date = datetime.datetime.now().strftime('%Y%m%d')
-        data = w.wset("indexconstituent", f"windcode={windcode};date={current_date}")
+        
+        # 先尝试作为指数代码获取成分股
+        data = w.wset("indexconstituent", f"windcode={input_code};date={current_date}")
         if data.ErrorCode == 0 and hasattr(data, 'Data') and len(data.Data) > 2:
             return dict(zip(data.Data[1], data.Data[2]))
             
-        print(f"获取成分股失败: {data.ErrorCode}")
+        print(f"尝试以指数代码获取成分股失败: {data.ErrorCode}")
+        
+        # 若失败，尝试作为板块ID获取成分股
+        sector_data = w.wset("sectorconstituent", f"date={current_date};sectorId={input_code};")
+        if sector_data.ErrorCode == 0 and hasattr(sector_data, 'Data') and len(sector_data.Data) > 2:
+            return dict(zip(sector_data.Data[1], sector_data.Data[2]))
+        
+        print(f"尝试以板块ID获取成分股失败: {sector_data.ErrorCode}")
+        
         return {}
     except Exception as e:
         print(f"获取成分股异常: {str(e)}")
@@ -150,7 +160,7 @@ if __name__ == "__main__":
     
     # 测试获取指数成分股
     print("\n测试获取沪深300成分股:")
-    hs300_stocks = getstocklist("000300.SH")
+    hs300_stocks = getstocklist("1000051463000000")
     print(hs300_stocks)
     print(f"获取到{len(hs300_stocks)}只成分股")
     if hs300_stocks:
