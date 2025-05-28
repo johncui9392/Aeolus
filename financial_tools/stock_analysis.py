@@ -8,7 +8,9 @@ def getstocklist(input_code):
     """尝试通过指数代码或板块ID获取成分股列表(适配WindPy接口)返回{代码:简称}字典"""
     try:
         import datetime
-        current_date = datetime.datetime.now().strftime('%Y%m%d')
+        # 修改为获取前一天的日期
+        previous_date = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%Y%m%d')
+        current_date = previous_date
         
         # 先尝试作为指数代码获取成分股
         data = w.wset("indexconstituent", f"windcode={input_code};date={current_date}")
