@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QTabWidget, QWidget,
                             QSpinBox, QMessageBox, QLineEdit, QTableWidget,
                             QHeaderView, QTableWidgetItem, QGroupBox)
 from PyQt5.QtCore import QDate, Qt, QThread, pyqtSignal, QTimer
+from PyQt5.QtGui import QColor  # 在文件顶部添加导入
 
 # 设置中文字体
 rcParams['font.sans-serif'] = ['PingFang SC', 'SimHei', 'Hiragino Sans GB', 'STHeiti', 'Arial Unicode MS']  # 支持中文的字体列表
@@ -132,6 +133,11 @@ class FinancialAnalysisApp(QMainWindow):
         ym_btn.clicked.connect(lambda: self.show_tab("道琼斯指数股指期货行情", self.add_ym_tab))
         realtime_layout.addWidget(ym_btn)
 
+        # 综合行情看板按钮
+        composite_btn = QPushButton("综合行情看板")
+        composite_btn.clicked.connect(lambda: self.show_tab("综合行情看板", self.add_composite_board_tab))
+        realtime_layout.addWidget(composite_btn)
+        
         realtime_group.setLayout(realtime_layout)
         layout.addWidget(realtime_group)
 
@@ -853,7 +859,127 @@ class FinancialAnalysisApp(QMainWindow):
             ax.text(0.5, 0.5, f'图表错误: {str(e)}', ha='center', va='center')
             self.volume_canvas.draw()
 
+    def add_composite_board_tab(self):
+        """添加综合行情看板"""
+        try:
+            tab = QWidget()
+            layout = QVBoxLayout()
+            
+            # 创建表格（修改列数为5并新增时间列）
+            self.composite_table = QTableWidget()
+            self.composite_table.setRowCount(6)
+            self.composite_table.setColumnCount(5)
+            self.composite_table.setHorizontalHeaderLabels(['品种', '时间', '最新价', '涨跌额', '涨跌幅'])
+            
+                    # 设置初始列宽
+            self.composite_table.setColumnWidth(0, 150)  # 品种列
+            self.composite_table.setColumnWidth(1, 150)  # 时间列
+            self.composite_table.setColumnWidth(2, 150)  # 最新价列
+            self.composite_table.setColumnWidth(3, 150)  # 涨跌额列
+            self.composite_table.setColumnWidth(4, 150)  # 涨跌幅列
 
+            # 初始化表格数据（新增时间列）
+            instruments = ['A50', '道琼斯', '纳斯达克', 'BTC', '黄金', 'UC00']
+            for i, instrument in enumerate(instruments):
+                self.composite_table.setItem(i, 0, QTableWidgetItem(instrument))
+                self.composite_table.setItem(i, 1, QTableWidgetItem('--:--:--'))
+                self.composite_table.setItem(i, 2, QTableWidgetItem('加载中...'))
+                self.composite_table.setItem(i, 3, QTableWidgetItem('加载中...'))
+                self.composite_table.setItem(i, 4, QTableWidgetItem('加载中...'))
+            
+            layout.addWidget(self.composite_table)
+            tab.setLayout(layout)
+            self.tabs.addTab(tab, "综合行情看板")
+            
+            # 初始化实时数据处理器
+            self.realtime_handlers = {
+                'A50': A50Realtime(),
+                '道琼斯': YmRealtime(),
+                '纳斯达克': NqRealtime(),
+                'BTC': BtcRealtime(),
+                '黄金': GoldRealtime(),
+                'UC00': Uc00Realtime()
+            }
+            
+            # 注册回调并启动
+            for name, handler in self.realtime_handlers.items():
+                handler.register_callback(lambda data, n=name: self._update_composite_row(n, data))
+                handler.start()
+                
+        except Exception as e:
+            QMessageBox.critical(self, "初始化错误", f"无法初始化综合行情看板:\n{str(e)}")
+    
+    def _update_composite_row(self, name, data):
+        """更新单个品种的行数据"""
+        try:
+            if not data or 'close' not in data or not data['close']:
+                return
+                
+            # 获取当前日期和时间
+            today = datetime.datetime.now().strftime('%Y-%m-%d')
+            time_str = data['time'][-1] if 'time' in data and data['time'] else '--:--:--'
+            
+            # 根据品种获取对应的Wind代码
+            wind_codes = {
+                'A50': 'CN.SG',
+                '道琼斯': 'YM.CBT',
+                '纳斯达克': 'NQ.CME',
+                'BTC': 'BTC.CME',
+                '黄金': 'GC.CMX',
+                'UC00': 'UC00.SG'
+            }
+            
+            # 获取昨日收盘价
+            if not hasattr(self, 'pre_close_data') or today not in self.pre_close_data:
+                if not hasattr(self, 'pre_close_data'):
+                    self.pre_close_data = {}
+                
+                # 批量获取所有品种的昨日收盘价
+                codes = ",".join(wind_codes.values())
+                w.start()
+                pre_close = w.wsd(codes, "pre_close", today, today, "")
+                
+                if pre_close.ErrorCode == 0:
+                    for i, code in enumerate(wind_codes.values()):
+                        instrument = list(wind_codes.keys())[i]
+                        self.pre_close_data[instrument] = pre_close.Data[0][i] if pre_close.Data[0][i] else 0
+                else:
+                    # 如果获取失败，使用默认值
+                    for instrument in wind_codes.keys():
+                        self.pre_close_data[instrument] = 0
+            row = list(self.realtime_handlers.keys()).index(name)
+            latest_price = data['close'][-1] if data['close'] else 0
+            pre_close = self.pre_close_data.get(name, 0)
+            
+            # 计算涨跌额和涨跌幅
+            chg = latest_price - pre_close
+            pct_chg = (chg / pre_close * 100) if pre_close != 0 else 0
+            
+            # 格式化数据
+            price = f"{latest_price:.2f}" if isinstance(latest_price, (int, float)) else "N/A"
+            chg_str = f"{chg:.2f}" if isinstance(chg, (int, float)) else "N/A"
+            pct_str = f"{pct_chg:.2f}%" if isinstance(pct_chg, (int, float)) else "N/A"
+            
+            # 创建带颜色的表格项
+            def create_colored_item(text, value):
+                item = QTableWidgetItem(text)
+                if isinstance(value, (int, float)):
+                    if value > 0:
+                        item.setForeground(QColor(255, 0, 0))  # 红色
+                    elif value < 0:
+                        item.setForeground(QColor(0, 255, 0))  # 绿色
+                return item
+            
+            # 更新表格（使用带颜色的项）
+            self.composite_table.setItem(row, 0, QTableWidgetItem(name))
+            self.composite_table.setItem(row, 1, QTableWidgetItem(time_str))
+            self.composite_table.setItem(row, 2, create_colored_item(price, chg))
+            self.composite_table.setItem(row, 3, create_colored_item(chg_str, chg))
+            self.composite_table.setItem(row, 4, create_colored_item(pct_str, pct_chg))
+            
+        except Exception as e:
+            print(f"更新{name}数据出错: {str(e)}")
+            
 class VolumeWorker(QThread):
     data_ready = pyqtSignal(dict)
     
@@ -864,6 +990,11 @@ class VolumeWorker(QThread):
             self.data_ready.emit(data)
         except Exception as e:
             self.data_ready.emit({'error': str(e)})
+
+
+
+
+
 
 
 if __name__ == "__main__":

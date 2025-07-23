@@ -7,7 +7,7 @@ from PyQt5.QtCore import QObject, QThread, pyqtSignal
 class A50Realtime(QObject):
     data_updated = pyqtSignal(dict)  # Signal for thread-safe updates
 
-    def __init__(self, start_time_hours=240):
+    def __init__(self, start_time_hours=72):
         super().__init__()
         self.running = False
         self.interval = 5  # 5秒刷新间隔
