@@ -42,7 +42,7 @@ from utility_tools.rtd_market_tab_utils import add_stock_realtime_tab
 class FinancialAnalysisApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("金融数据分析平台")
+        self.setWindowTitle("Aeolus金融分析平台")
         self.setGeometry(100, 100, 1200, 800)
         
         # Create main tab widget
@@ -57,7 +57,7 @@ class FinancialAnalysisApp(QMainWindow):
         layout = QVBoxLayout()
         
         # 首页标题
-        title_label = QLabel("欢迎使用金融数据分析平台")
+        title_label = QLabel("欢迎使用Aeolus金融分析平台")
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setStyleSheet("font-size: 24px; font-weight: bold;")
         layout.addWidget(title_label)
