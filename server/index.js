@@ -19,6 +19,8 @@ app.use(express.json());
 const SKILLS_BASE_PATH = path.resolve(__dirname, '..');
 const SKILLS_DIR = path.join(SKILLS_BASE_PATH, 'skills');
 const HISTORY_DIR = path.join(SKILLS_BASE_PATH, 'history');
+const PYTHON_DIR = path.join(SKILLS_BASE_PATH, 'python');
+const SHARED_PYTHON_PATH = process.env.AEOLUS_PYTHON_PATH || path.join(PYTHON_DIR, 'venv', 'Scripts', 'python.exe');
 const XLSX_API = XLSX?.utils ? XLSX : (XLSX?.default || {});
 const API_KEY_PROVIDERS = {
   mx: {
@@ -32,28 +34,28 @@ const API_KEY_PROVIDERS = {
 const SKILL_CONFIGS = {
   findata: {
     name: 'MX_FinData',
-    pythonPath: path.join(SKILLS_DIR, 'MX_FinData', 'venv', 'Scripts', 'python.exe'),
+    pythonPath: SHARED_PYTHON_PATH,
     scriptPath: path.join(SKILLS_DIR, 'MX_FinData', 'scripts', 'get_data.py'),
     outputDir: path.join(HISTORY_DIR, 'MX_FinData'),
     args: (query) => ['--query', query]
   },
   finsearch: {
     name: 'MX_FinSearch',
-    pythonPath: path.join(SKILLS_DIR, 'MX_FinSearch', 'venv', 'Scripts', 'python.exe'),
+    pythonPath: SHARED_PYTHON_PATH,
     scriptPath: path.join(SKILLS_DIR, 'MX_FinSearch', 'scripts', 'get_data.py'),
     outputDir: path.join(HISTORY_DIR, 'MX_FinSearch'),
     args: (query) => [query]
   },
   macrodata: {
     name: 'MX_MacroData',
-    pythonPath: path.join(SKILLS_DIR, 'MX_MacroData', 'venv', 'Scripts', 'python.exe'),
+    pythonPath: SHARED_PYTHON_PATH,
     scriptPath: path.join(SKILLS_DIR, 'MX_MacroData', 'scripts', 'get_data.py'),
     outputDir: path.join(HISTORY_DIR, 'MX_MacroData'),
     args: (query) => ['--query', query]
   },
   stockpick: {
     name: 'MX_StockPick',
-    pythonPath: path.join(SKILLS_DIR, 'MX_StockPick', 'venv', 'Scripts', 'python.exe'),
+    pythonPath: SHARED_PYTHON_PATH,
     scriptPath: path.join(SKILLS_DIR, 'MX_StockPick', 'scripts', 'get_data.py'),
     outputDir: path.join(HISTORY_DIR, 'MX_StockPick'),
     args: (query, selectType) => ['--query', query, '--select-type', selectType || 'A股']
@@ -187,7 +189,7 @@ function executePythonScript(config, query, additionalParams = {}) {
     if (!fs.existsSync(config.pythonPath)) {
       reject(
         new Error(
-          `未找到 Python 运行环境：${config.pythonPath}。请先在对应 skills 目录下创建 venv 并安装依赖。`
+          `未找到 Python 运行环境：${config.pythonPath}。请先在项目根目录执行 setup-python.ps1 初始化统一 Python 环境。`
         )
       );
       return;

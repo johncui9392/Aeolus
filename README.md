@@ -21,7 +21,7 @@ Aeolus 是一个金融 Skills 聚合平台，提供统一 Web 界面来调用多
 
 - 前端：React + Vite + Tailwind（`src/`）
 - 后端：Express（`server/index.js`）
-- 技能运行：Python skills（`skills/`）
+- 技能运行：统一 Python 环境 + Python skills（`python/` + `skills/`）
 - 结果落盘：`history/`
 - API Key 管理：本地文件 + 环境变量（当前 `EM_API_KEY`）
 
@@ -30,17 +30,23 @@ Aeolus 是一个金融 Skills 聚合平台，提供统一 Web 界面来调用多
 - Node.js 18+
 - pnpm 8+
 - Windows PowerShell（推荐）
-- Python 运行环境（用于 `skills/` 下各技能）
+- Python 3.10+（统一安装在项目根目录 `python/venv/`）
 
 ## 快速开始
 
-1. 安装依赖
+1. 安装前端依赖
 
 ```powershell
 pnpm install
 ```
 
-2. 配置 API Key（必做）
+2. 初始化统一 Python 环境
+
+```powershell
+.\setup-python.ps1
+```
+
+3. 配置 API Key（必做）
 
 - 复制 `EM_API_KEY.local.example` 为 `EM_API_KEY.local`
 - 将示例行改为：
@@ -49,7 +55,7 @@ pnpm install
 default=你的_em_api_key
 ```
 
-3. 启动应用
+4. 启动应用
 
 ```powershell
 .\start.ps1
@@ -77,7 +83,8 @@ pnpm run preview     # 预览构建结果
 Aeolus/
 ├── src/                   # 前端 React
 ├── server/                # 后端 Express API
-├── skills/                # Python skills（每个技能独立目录）
+├── python/                # 统一 Python 环境与依赖
+├── skills/                # Python skills 脚本
 ├── history/               # 查询输出目录（运行后生成）
 ├── .github/               # CI / Issue / PR 模板
 ├── EM_API_KEY.local.example
@@ -101,7 +108,7 @@ Aeolus/
 
 - 请勿提交 `EM_API_KEY.local` 或任何真实密钥
 - 建议在 fork/公开前检查历史提交，确保未泄露密钥
-- 发布前请确认本地产物未进入仓库：`node_modules/`、`dist/`、`history/`、`miaoxiang/`、`skills/**/venv/`
+- 发布前请确认本地产物未进入仓库：`node_modules/`、`dist/`、`history/`、`miaoxiang/`、`python/venv/`、`skills/**/venv/`
 - 如发现安全问题，请参阅 `SECURITY.md`
 
 ## 贡献
