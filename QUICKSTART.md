@@ -1,20 +1,6 @@
 # Quick Start
 
-## 1) Install
-
-```powershell
-pnpm install
-```
-
-## 2) Setup shared Python environment
-
-```powershell
-.\setup-python.ps1
-```
-
-This creates a single Python environment under `python/venv/` for all skills.
-
-## 3) Configure API Key
+## 1) Configure API Key
 
 Copy `EM_API_KEY.local.example` to `EM_API_KEY.local`, then set:
 
@@ -24,19 +10,22 @@ default=your_em_api_key
 
 You can also manage keys from the UI: left sidebar -> User Center -> API Key 管理.
 
-## 4) Start
+## 2) Start
+
+Run:
 
 ```powershell
+pnpm install
+.\setup-python.ps1
 .\start.ps1
 ```
 
-or:
+This will:
+- install frontend dependencies
+- create the shared Python environment under `python/venv/`
+- start frontend and backend
 
-```powershell
-pnpm run dev
-```
-
-## 5) Access
+## Access
 
 - Frontend: http://localhost:3000
 - Backend: http://localhost:3001
