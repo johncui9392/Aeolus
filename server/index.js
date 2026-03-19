@@ -3,6 +3,7 @@ import cors from 'cors';
 import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { TextDecoder } from 'util';
 import fs from 'fs';
 import * as XLSX from 'xlsx';
 
@@ -78,12 +79,8 @@ function loadApiKeyFromLocalFile(providerConfig = API_KEY_PROVIDERS.mx) {
     }
 
     const content = fs.readFileSync(providerConfig.filePath, 'utf-8');
-    const lines = content
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line && !line.startsWith('#'));
-
-    return lines[0] || '';
+    const parsedKeys = parseApiKeysFileContent(content);
+    return parsedKeys[0]?.key || '';
   } catch (error) {
     console.error(`读取 ${path.basename(providerConfig.filePath)} 失败:`, error);
     return '';
@@ -156,6 +153,22 @@ function maskKey(key) {
   return `${s.slice(0, 4)}****${s.slice(-4)}`;
 }
 
+function decodeProcessOutput(chunks) {
+  const buffer = Buffer.concat((chunks || []).map((chunk) => Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+  if (buffer.length === 0) return '';
+
+  const utf8Text = buffer.toString('utf8');
+  if (!utf8Text.includes('�')) {
+    return utf8Text;
+  }
+
+  try {
+    return new TextDecoder('gb18030').decode(buffer);
+  } catch {
+    return utf8Text;
+  }
+}
+
 function executePythonScript(config, query, additionalParams = {}) {
   return new Promise((resolve, reject) => {
     const args = config.args(query, additionalParams.selectType);
@@ -170,34 +183,51 @@ function executePythonScript(config, query, additionalParams = {}) {
       );
       return;
     }
+
+    if (!fs.existsSync(config.pythonPath)) {
+      reject(
+        new Error(
+          `未找到 Python 运行环境：${config.pythonPath}。请先在对应 skills 目录下创建 venv 并安装依赖。`
+        )
+      );
+      return;
+    }
+
+    if (!fs.existsSync(config.scriptPath)) {
+      reject(
+        new Error(
+          `未找到技能脚本：${config.scriptPath}。请检查 skills 目录是否完整。`
+        )
+      );
+      return;
+    }
     
     const pythonProcess = spawn(config.pythonPath, [config.scriptPath, ...args], {
       env: { 
         ...process.env,
         [providerConfig.envVar]: apiKey,
-        PYTHONIOENCODING: 'utf-8'
+        PYTHONIOENCODING: 'utf-8',
+        PYTHONUTF8: '1'
       },
       cwd: SKILLS_BASE_PATH,
-      shell: true,
+      shell: false,
       windowsHide: true
     });
 
-    let stdout = '';
-    let stderr = '';
+    const stdoutChunks = [];
+    const stderrChunks = [];
 
     pythonProcess.stdout.on('data', (data) => {
-      const text = data.toString('utf8');
-      stdout += text;
-      console.log(text);
+      stdoutChunks.push(Buffer.from(data));
     });
 
     pythonProcess.stderr.on('data', (data) => {
-      const text = data.toString('utf8');
-      stderr += text;
-      console.error(text);
+      stderrChunks.push(Buffer.from(data));
     });
 
     pythonProcess.on('close', (code) => {
+      const stdout = decodeProcessOutput(stdoutChunks);
+      const stderr = decodeProcessOutput(stderrChunks);
       if (code !== 0) {
         reject(new Error(`执行失败: ${stderr || stdout}`));
       } else {
