@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest an idea to improve Aeolus
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your suggestion.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem are you trying to solve?
+      placeholder: Describe the user pain clearly.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should be added or changed?
+      placeholder: Describe the expected behavior and UX.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternatives or trade-offs?
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope / impact
+      description: Affected modules (frontend/backend/skills/history/API key/etc.)
