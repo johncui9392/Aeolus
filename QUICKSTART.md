@@ -2,6 +2,16 @@
 
 ## 1) Configure API Key
 
+Get your API Key from Eastmoney OpenClaw:
+
+- Open: `https://ai.eastmoney.com/mxClaw`
+- Click `一键下载，获取apikey`
+- After generation, you will see:
+
+```text
+您的专属API Key已生成，请勿泄露给他人。您可以根据指引使用妙想技能包。
+```
+
 Copy `EM_API_KEY.local.example` to `EM_API_KEY.local`, then set:
 
 ```text
