@@ -1,30 +1,25 @@
 {
   "name": "aeolus",
-  "version": "1.0.0",
-  "description": "Aeolus - 金融skill使用平台",
+  "version": "2.0.0",
+  "description": "Aeolus — 金融 Skill 平台",
   "type": "module",
+  "private": true,
   "scripts": {
-    "dev": "concurrently \"pnpm run dev:server\" \"pnpm run dev:client\"",
-    "dev:server": "node server/index.js",
-    "dev:client": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "concurrently -n backend,frontend -c cyan,magenta \"node backend/server.js\" \"pnpm --filter ./frontend run dev\"",
+    "dev:backend": "node backend/server.js",
+    "dev:frontend": "pnpm --filter ./frontend run dev",
+    "build": "pnpm --filter ./frontend run build",
+    "preview": "pnpm --filter ./frontend run preview",
+    "install:all": "pnpm install && pnpm --filter ./frontend install && pnpm --filter ./backend install"
   },
   "dependencies": {
-    "axios": "^1.6.2",
-    "cors": "^2.8.5",
-    "express": "^4.18.2",
-    "lucide-react": "^0.294.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "xlsx": "^0.18.5"
+    "concurrently": "^8.2.2"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.2.1",
-    "autoprefixer": "^10.4.16",
-    "concurrently": "^8.2.2",
-    "postcss": "^8.4.32",
-    "tailwindcss": "^3.4.0",
-    "vite": "^5.0.8"
-  }
+    "concurrently": "^8.2.2"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ]
 }

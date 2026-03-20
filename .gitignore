@@ -14,7 +14,10 @@ build/
 # API Key（含真实 key，勿提交）
 EM_API_KEY.local
 
-# Runtime outputs
+# Runtime outputs (Python 脚本的临时输出目录，读取后立即清理)
+tmp/*
+!tmp/.gitkeep
+# 兼容旧版 Python 脚本可能写入的目录，防止意外提交
 history/
 miaoxiang/
 

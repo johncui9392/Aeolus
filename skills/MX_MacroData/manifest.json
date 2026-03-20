@@ -1,0 +1,14 @@
+{
+  "id": "macrodata",
+  "name": "MX_MacroData",
+  "title": "宏观经济数据",
+  "description": "查询GDP、CPI、PMI等国内外宏观经济数据，支持时序对比分析。",
+  "placeholder": "例如: 中国GDP",
+  "icon": "TrendingUp",
+  "category": "macro",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}"]
+}

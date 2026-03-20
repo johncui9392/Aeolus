@@ -1,0 +1,14 @@
+{
+  "id": "findata",
+  "name": "MX_FinData",
+  "title": "金融数据查询",
+  "description": "查询股票、ETF、债券等金融数据，支持历史行情、财务指标等多维度数据。",
+  "placeholder": "例如: 贵州茅台近期走势如何",
+  "icon": "Database",
+  "category": "market",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}"]
+}

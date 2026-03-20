@@ -2,7 +2,7 @@
 
 ![Aeolus Banner](docs/assets/banner.svg)
 
-Aeolus 是一个金融 Skills 聚合平台，提供统一 Web 界面来调用多种金融查询能力（金融数据、金融资讯、宏观数据、选股/选基金）。
+Aeolus 是一个**金融 Skill 聚合平台**，提供统一 Web 界面调用多种金融查询能力。采用插件化架构，新增技能无需改动任何现有代码。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js&logoColor=white)](#环境要求)
@@ -11,110 +11,112 @@ Aeolus 是一个金融 Skills 聚合平台，提供统一 Web 界面来调用多
 
 ## 功能特性
 
-- 多技能统一入口：`MX_FinData`、`MX_FinSearch`、`MX_MacroData`、`MX_StockPick`
-- 查询历史与结果预览（文本/CSV/Excel）
-- 金融资讯结果自动结构化展示（新闻卡片）
-- 用户中心支持主题切换与 API Key 管理
-- API Key 多条目管理（当前 provider: `mx`）
+- **插件商店**：技能以插件形式注册（`manifest.json`），新增技能无需改代码
+- **多技能支持**：`MX_FinData`、`MX_FinSearch`、`MX_MacroData`、`MX_StockPick`
+- **纯 JSON 数据流**：结果直接返回结构化 JSON，不写本地文件，支持前端直接导出 Excel/CSV
+- **Vibe Design UI**：基于 Material Design 3 动态配色体系，带 Spring 微交互动效
+- **主题切换**：深色多主题，Design Token 驱动，一键切换
+- **API Key 管理**：多条目管理，UI 内配置，无需重启服务
 
 ## 架构概览
 
-- 前端：React + Vite + Tailwind（`src/`）
-- 后端：Express（`server/index.js`）
-- 技能运行：统一 Python 环境 + Python skills（`python/` + `skills/`）
-- 结果落盘：`history/`
-- API Key 管理：本地文件 + 环境变量（当前 `EM_API_KEY`）
+```text
+前端 (frontend/)  ←──── /api/* ────→  后端 (backend/)
+React + Vite           JSON only      Express + Node.js
+动态加载技能列表                        插件动态注册器
+前端导出 Excel/CSV                     Python 执行 → JSON → 清理临时文件
+useAuth hook (扩展点)                  auth middleware (扩展点)
+```
+
+- **前端**：`frontend/` — React + Vite + Tailwind + Framer Motion
+- **后端**：`backend/` — Express，插件化路由，无状态
+- **技能插件**：`skills/` — 每个技能一个目录，含 `manifest.json` + Python 脚本
+- **临时目录**：`tmp/` — Python 输出的临时文件，读取后立即删除
+- **API Key**：本地文件 `EM_API_KEY.local` + 环境变量（`EM_API_KEY`）
 
 ## 环境要求
 
 - Node.js 18+
 - pnpm 8+
+- Python 3.10+
 - Windows PowerShell（推荐）
-- Python 3.10+（统一安装在项目根目录 `python/venv/`）
 
 ## 快速开始
 
-1. 安装前端依赖
-
 ```powershell
-pnpm install
-```
-
-2. 初始化统一 Python 环境
-
-```powershell
+# 1. 初始化 Python 环境（仅第一次）
 .\setup-python.ps1
-```
 
-3. 配置 API Key（必做）
+# 2. 配置 API Key
+Copy-Item EM_API_KEY.local.example EM_API_KEY.local
+# 编辑 EM_API_KEY.local，填入 default=your_em_api_key
 
-- 复制 `EM_API_KEY.local.example` 为 `EM_API_KEY.local`
-- 将示例行改为：
-
-```text
-default=你的_em_api_key
-```
-
-4. 启动应用
-
-```powershell
+# 3. 启动
 .\start.ps1
 ```
 
-或直接：
-
-```powershell
-pnpm run dev
-```
-
-## 常用命令
-
-```powershell
-pnpm run dev         # 前后端联调
-pnpm run dev:server  # 仅后端
-pnpm run dev:client  # 仅前端
-pnpm run build       # 构建前端
-pnpm run preview     # 预览构建结果
-```
+详见 [QUICKSTART.md](QUICKSTART.md)。
 
 ## 目录结构
 
 ```text
 Aeolus/
-├── src/                   # 前端 React
-├── server/                # 后端 Express API
-├── python/                # 统一 Python 环境与依赖
-├── skills/                # Python skills 脚本
-├── history/               # 查询输出目录（运行后生成）
-├── .github/               # CI / Issue / PR 模板
-├── EM_API_KEY.local.example
+├── frontend/                  # 前端（可独立部署至 Vercel）
+│   ├── src/
+│   │   ├── App.jsx            # 主界面，动态加载技能
+│   │   └── hooks/useAuth.js   # 可替换的鉴权 Hook
+│   └── ...
+├── backend/                   # 后端（可独立部署至 VPS/Render）
+│   ├── server.js
+│   ├── middleware/auth.js      # 可替换的鉴权中间件
+│   └── services/
+│       ├── skillRegistry.js   # 插件动态注册器
+│       └── pythonRunner.js    # Python 执行 + JSON 解析 + 临时文件清理
+├── skills/                    # 技能插件目录
+│   └── MX_FinData/
+│       ├── manifest.json      # 插件描述符
+│       ├── scripts/get_data.py
+│       └── SKILL.md
+├── python/                    # 共享 Python 虚拟环境
+├── tmp/                       # Python 临时输出（读后即删，.gitkeep 追踪目录）
+├── docs/
+├── .github/
+├── package.json               # Monorepo 根协调器
+├── setup-python.ps1
 ├── start.ps1
-└── README.md
+└── EM_API_KEY.local.example
 ```
 
-## API 端点（简表）
+## API 端点
 
 | Method | Path | 说明 |
 |---|---|---|
-| `POST` | `/api/query` | 执行技能查询 |
-| `GET` | `/api/file-content` | 获取文件预览内容（文本/CSV/Excel） |
-| `GET` | `/api/download` | 下载查询结果文件 |
-| `GET` | `/api/query-history-from-files` | 从 `history/` 聚合历史记录 |
-| `GET` | `/api/api-keys` | 读取 API Key 列表与当前激活项 |
-| `POST` | `/api/api-keys` | 管理 API Key（添加/切换/删除） |
 | `GET` | `/api/health` | 健康检查 |
+| `GET` | `/api/skills` | 获取所有已注册技能（插件商店） |
+| `POST` | `/api/query` | 执行技能查询，返回 JSON 数据 |
+| `GET` | `/api/api-keys` | 读取 API Key 列表 |
+| `POST` | `/api/api-keys` | 管理 API Key（add / setActive / delete） |
+
+## 扩展新技能
+
+只需三步，无需改任何现有代码：
+
+1. 在 `skills/` 下新建目录，如 `skills/MY_NewSkill/`
+2. 创建 `manifest.json`（参考现有技能格式）
+3. 创建 `scripts/get_data.py`
+
+重启 backend，前端插件商店自动展示新技能。
 
 ## 安全说明
 
 - 请勿提交 `EM_API_KEY.local` 或任何真实密钥
-- 建议在 fork/公开前检查历史提交，确保未泄露密钥
-- 发布前请确认本地产物未进入仓库：`node_modules/`、`dist/`、`history/`、`miaoxiang/`、`python/venv/`、`skills/**/venv/`
-- 如发现安全问题，请参阅 `SECURITY.md`
+- 发布前确认 `node_modules/`、`dist/`、`tmp/`、`python/venv/` 未进入仓库
+- 安全问题请参阅 [SECURITY.md](SECURITY.md)
 
 ## 贡献
 
-欢迎贡献，详见 `CONTRIBUTING.md` 与 `CODE_OF_CONDUCT.md`。
+欢迎贡献，详见 [CONTRIBUTING.md](CONTRIBUTING.md) 与 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
 
 ## 许可证
 
-MIT，详见 `LICENSE`。
+MIT，详见 [LICENSE](LICENSE)。

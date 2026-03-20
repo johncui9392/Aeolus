@@ -1,0 +1,170 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Outfit', system-ui, sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+/* Material Design 3 Dark Theme - Palette 05 (Indigo/Purple Base) */
+:root,
+[data-theme='palette-05'] {
+  --md-sys-color-primary: #bec2ff;
+  --md-sys-color-on-primary: #282d6b;
+  --md-sys-color-primary-container: #3f4482;
+  --md-sys-color-on-primary-container: #e0e0ff;
+  --md-sys-color-secondary: #c5c4dd;
+  --md-sys-color-on-secondary: #2e2f42;
+  --md-sys-color-secondary-container: #444559;
+  --md-sys-color-on-secondary-container: #e1e0f9;
+  --md-sys-color-tertiary: #e7b9d5;
+  --md-sys-color-on-tertiary: #44263e;
+  --md-sys-color-tertiary-container: #5d3c55;
+  --md-sys-color-on-tertiary-container: #ffd8ef;
+  --md-sys-color-error: #ffb4ab;
+  --md-sys-color-on-error: #690005;
+  --md-sys-color-error-container: #93000a;
+  --md-sys-color-on-error-container: #ffdad6;
+  --md-sys-color-background: #121318;
+  --md-sys-color-on-background: #e4e1e6;
+  --md-sys-color-surface: #121318;
+  --md-sys-color-on-surface: #e4e1e6;
+  --md-sys-color-surface-variant: #46464f;
+  --md-sys-color-on-surface-variant: #c6c5d0;
+  --md-sys-color-outline: #90909a;
+  --md-sys-color-outline-variant: #46464f;
+  --md-sys-color-surface-container-lowest: #0d0e11;
+  --md-sys-color-surface-container-low: #1a1b21;
+  --md-sys-color-surface-container: #1e1f25;
+  --md-sys-color-surface-container-high: #282a2f;
+  --md-sys-color-surface-container-highest: #33353a;
+  --logo-grad-from: var(--md-sys-color-primary);
+  --logo-grad-to: var(--md-sys-color-tertiary);
+}
+
+/* Material Design 3 Dark Theme - Palette 01 (Cyan/Teal Base) */
+[data-theme='palette-01'] {
+  --md-sys-color-primary: #52d7d1;
+  --md-sys-color-on-primary: #003734;
+  --md-sys-color-primary-container: #00504d;
+  --md-sys-color-on-primary-container: #72f4ee;
+  --md-sys-color-secondary: #b0ccc9;
+  --md-sys-color-on-secondary: #1a3533;
+  --md-sys-color-secondary-container: #314b4a;
+  --md-sys-color-on-secondary-container: #cbe8e5;
+  --md-sys-color-tertiary: #b4c7ed;
+  --md-sys-color-on-tertiary: #1d314f;
+  --md-sys-color-tertiary-container: #344867;
+  --md-sys-color-on-tertiary-container: #d4e3ff;
+  --md-sys-color-error: #ffb4ab;
+  --md-sys-color-on-error: #690005;
+  --md-sys-color-error-container: #93000a;
+  --md-sys-color-on-error-container: #ffdad6;
+  --md-sys-color-background: #0f1414;
+  --md-sys-color-on-background: #dfe3e2;
+  --md-sys-color-surface: #0f1414;
+  --md-sys-color-on-surface: #dfe3e2;
+  --md-sys-color-surface-variant: #3f4948;
+  --md-sys-color-on-surface-variant: #bec9c7;
+  --md-sys-color-outline: #889392;
+  --md-sys-color-outline-variant: #3f4948;
+  --md-sys-color-surface-container-lowest: #0a0f0e;
+  --md-sys-color-surface-container-low: #171c1b;
+  --md-sys-color-surface-container: #1b2020;
+  --md-sys-color-surface-container-high: #252b2a;
+  --md-sys-color-surface-container-highest: #303635;
+  --logo-grad-from: var(--md-sys-color-primary);
+  --logo-grad-to: var(--md-sys-color-tertiary);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--md-sys-color-background);
+  color: var(--md-sys-color-on-background);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* Scrollbar M3 Style */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--md-sys-color-outline-variant);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--md-sys-color-outline);
+}
+
+/* Input focus M3 outline */
+input:focus, select:focus {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: -2px;
+}
+
+/* Ripple Base Class for manual styling if needed, though Framer Motion is primary */
+.vibe-ripple-container {
+  position: relative;
+  overflow: hidden;
+}
+.vibe-ripple {
+  position: absolute;
+  border-radius: 50%;
+  transform: scale(0);
+  animation: vibe-ripple-animation 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: var(--md-sys-color-on-surface);
+  opacity: 0.12;
+  pointer-events: none;
+}
+.vibe-ripple-primary {
+  background-color: var(--md-sys-color-primary);
+}
+.vibe-ripple-on-primary {
+  background-color: var(--md-sys-color-on-primary);
+}
+
+@keyframes vibe-ripple-animation {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.logo-ribbon-piece {
+  position: absolute;
+  width: 5px;
+  height: 16px;
+  border-radius: 9999px;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  animation: logo-ribbon-burst 920ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation-delay: var(--delay, 0ms);
+}
+
+@keyframes logo-ribbon-burst {
+  0% {
+    transform: translate(-50%, -50%) translate(0, 0) rotate(0deg) scale(0.8);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.5);
+    opacity: 0;
+  }
+}

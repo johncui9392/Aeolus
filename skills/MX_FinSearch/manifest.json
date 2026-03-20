@@ -1,0 +1,14 @@
+{
+  "id": "finsearch",
+  "name": "MX_FinSearch",
+  "title": "金融资讯搜索",
+  "description": "搜索最新金融新闻、研报、公告，覆盖沪深港美全市场。",
+  "placeholder": "例如: 寒武纪 688256 最新研报与公告",
+  "icon": "Search",
+  "category": "news",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": ["{query}"]
+}

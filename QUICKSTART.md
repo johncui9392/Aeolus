@@ -6,46 +6,55 @@ Get your API Key from Eastmoney OpenClaw:
 
 - Open: `https://ai.eastmoney.com/mxClaw`
 - Click `一键下载，获取apikey`
-- After generation, you will see:
 
-```text
-您的专属API Key已生成，请勿泄露给他人。您可以根据指引使用妙想技能包。
-```
-
-Copy `EM_API_KEY.local.example` to `EM_API_KEY.local`, then set:
+Copy `EM_API_KEY.local.example` to `EM_API_KEY.local`, then fill in:
 
 ```text
 default=your_em_api_key
 ```
 
-You can also manage keys from the UI: left sidebar -> User Center -> API Key 管理.
+You can also manage keys from the UI: left sidebar → User → API Key 管理.
 
-## 2) Start
-
-Run:
+## 2) Setup & Start
 
 ```powershell
-pnpm install
+# 1. Initialize shared Python environment (one-time)
 .\setup-python.ps1
+
+# 2. Start frontend + backend together
 .\start.ps1
 ```
 
-This will:
-- install frontend dependencies
-- create the shared Python environment under `python/venv/`
-- start frontend and backend
+`start.ps1` will automatically install `backend/` and `frontend/` dependencies on first run.
 
 ## Access
 
-- Frontend: http://localhost:3000
-- Backend: http://localhost:3001
+| Service  | URL                   |
+| -------- | --------------------- |
+| Frontend | http://localhost:5173 |
+| Backend  | http://localhost:3001 |
+
+## Run Separately
+
+```powershell
+# Backend only
+Set-Location backend
+node server.js
+
+# Frontend only
+Set-Location frontend
+pnpm run dev
+
+# Build frontend for production
+Set-Location frontend
+pnpm run build
+```
 
 ## Common Issues
 
 ### EM_API_KEY not set
 
-- Ensure `EM_API_KEY.local` exists and contains a valid first line.
-- Or set environment variable in the same terminal session:
+Ensure `EM_API_KEY.local` exists with a valid key, or set in terminal:
 
 ```powershell
 $env:EM_API_KEY="your_em_api_key"
@@ -60,11 +69,15 @@ taskkill /PID <PID> /F
 
 ### Python skill execution fails
 
-- Check the shared Python environment under `python/venv/`.
-- Re-run:
+Re-run setup:
 
 ```powershell
 .\setup-python.ps1
 ```
 
-- Verify script path and runtime permissions.
+### Adding a new Skill
+
+1. Create a directory under `skills/`, e.g. `skills/MY_NewSkill/`
+2. Add `skills/MY_NewSkill/manifest.json` (see existing skills for format)
+3. Add `skills/MY_NewSkill/scripts/get_data.py`
+4. Restart backend — the skill will appear in the UI automatically

@@ -1,0 +1,14 @@
+{
+  "id": "stockpick",
+  "name": "MX_StockPick",
+  "title": "选股/选基金",
+  "description": "按条件筛选股票、基金、ETF，支持多因子组合过滤。",
+  "placeholder": "例如: 股价大于100元",
+  "icon": "Target",
+  "category": "screening",
+  "tier": "free",
+  "needsSelectType": true,
+  "selectOptions": ["A股", "港股", "美股", "板块", "基金", "ETF", "可转债"],
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}", "--select-type", "{selectType}"]
+}
