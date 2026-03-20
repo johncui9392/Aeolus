@@ -23,11 +23,33 @@ const XLSX_API = XLSX?.utils ? XLSX : (XLSX?.default || {})
 const MAX_ROWS = 500
 const MAX_COLS = 60
 
+/** True if value looks like a filesystem path (not a bare command like `python3`). */
+function looksLikeFilesystemPath(p) {
+  if (!p || typeof p !== 'string') return false
+  if (path.isAbsolute(p)) return true
+  if (p.includes('/') || p.includes('\\')) return true
+  if (/^[A-Za-z]:[\\/]/.test(p)) return true
+  return false
+}
+
+/**
+ * Resolve Python executable:
+ * 1. AEOLUS_PYTHON_PATH (override, e.g. on Render)
+ * 2. python/venv/bin/python (Linux/macOS venv)
+ * 3. python/venv/Scripts/python.exe (Windows venv)
+ * 4. python3 (system / PATH)
+ */
 export function getPythonPath() {
-  return (
-    process.env.AEOLUS_PYTHON_PATH ||
-    path.join(PROJECT_ROOT, 'python', 'venv', 'Scripts', 'python.exe')
-  )
+  const fromEnv = (process.env.AEOLUS_PYTHON_PATH || '').trim()
+  if (fromEnv) return fromEnv
+
+  const linuxVenv = path.join(PROJECT_ROOT, 'python', 'venv', 'bin', 'python')
+  if (fs.existsSync(linuxVenv)) return linuxVenv
+
+  const winVenv = path.join(PROJECT_ROOT, 'python', 'venv', 'Scripts', 'python.exe')
+  if (fs.existsSync(winVenv)) return winVenv
+
+  return 'python3'
 }
 
 function decodeOutput(chunks) {
@@ -44,9 +66,11 @@ function decodeOutput(chunks) {
 export async function runPythonScript(scriptPath, args = [], extraEnv = {}) {
   const pythonPath = getPythonPath()
 
-  if (!fs.existsSync(pythonPath)) {
+  if (looksLikeFilesystemPath(pythonPath) && !fs.existsSync(pythonPath)) {
     throw new Error(
-      `Python 运行环境未找到: ${pythonPath}。\n请先执行 setup-python.ps1 初始化环境，或设置环境变量 AEOLUS_PYTHON_PATH。`
+      `Python 运行环境未找到: ${pythonPath}。\n` +
+        'Windows 请运行 .\\setup-python.ps1；Linux/macOS（含 Render）请运行 ./setup-python.sh；' +
+        '也可设置环境变量 AEOLUS_PYTHON_PATH 指向 python 可执行文件。'
     )
   }
   if (!fs.existsSync(scriptPath)) {
@@ -83,20 +107,77 @@ export async function runPythonScript(scriptPath, args = [], extraEnv = {}) {
 
 // ─── 文件解析工具 ──────────────────────────────────────────────
 
+const WIN_PATH_EXT = /[A-Za-z]:\\(?:[^\s\r\n\\]+\\)*[^\s\r\n\\]+\.(?:xlsx|xls|csv|txt)/gi
+const POSIX_PATH_EXT = /\/(?:[^\s\r\n/]+\/)*[^\s\r\n/]+\.(?:xlsx|xls|csv|txt)/gi
+const REL_PATH_EXT = /\b((?:\.\/)?(?:[\w.-]+[/\\])+[\w.-]+\.(?:xlsx|xls|csv|txt))\b/gi
+
+function maskRanges(str, ranges) {
+  let s = str
+  for (const [a, b] of [...ranges].sort((x, y) => y[0] - x[0])) {
+    if (a >= 0 && b <= s.length && b > a) {
+      s = s.slice(0, a) + ' '.repeat(b - a) + s.slice(b)
+    }
+  }
+  return s
+}
+
+function collectHitsForLine(line) {
+  const hits = []
+  const ranges = []
+
+  WIN_PATH_EXT.lastIndex = 0
+  for (const m of line.matchAll(WIN_PATH_EXT)) {
+    hits.push({ i: m.index, s: m[0] })
+    ranges.push([m.index, m.index + m[0].length])
+  }
+  POSIX_PATH_EXT.lastIndex = 0
+  for (const m of line.matchAll(POSIX_PATH_EXT)) {
+    hits.push({ i: m.index, s: m[0] })
+    ranges.push([m.index, m.index + m[0].length])
+  }
+
+  const masked = maskRanges(line, ranges)
+  REL_PATH_EXT.lastIndex = 0
+  for (const m of masked.matchAll(REL_PATH_EXT)) {
+    const token = m[1] || m[0]
+    hits.push({ i: m.index, s: token })
+  }
+
+  hits.sort((a, b) => a.i - b.i)
+  return hits
+}
+
+function normalizeExtractedPath(raw) {
+  const s = String(raw || '').trim()
+  if (!s) return null
+  return path.isAbsolute(s) ? s : path.resolve(PROJECT_ROOT, s)
+}
+
 function extractFilePaths(stdout) {
   const dataFiles = []
   let descFile = null
+  const seen = new Set()
+  const ordered = []
 
   for (const line of stdout.split('\n')) {
-    const m = line.match(/[A-Za-z]:\\[^\s\r\n]+\.(xlsx|xls|csv|txt)/i)
-    if (!m) continue
-    const fp = m[0]
-    if (fp.toLowerCase().endsWith('.txt')) {
-      descFile = fp
-    } else {
-      dataFiles.push(fp)
+    for (const { s } of collectHitsForLine(line)) {
+      const full = normalizeExtractedPath(s)
+      if (!full) continue
+      const key = path.normalize(full)
+      if (seen.has(key)) continue
+      seen.add(key)
+      ordered.push(full)
     }
   }
+
+  for (const full of ordered) {
+    if (full.toLowerCase().endsWith('.txt')) {
+      descFile = full
+    } else {
+      dataFiles.push(full)
+    }
+  }
+
   return { dataFiles, descFile }
 }
 
