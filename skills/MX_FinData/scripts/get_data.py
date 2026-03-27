@@ -328,7 +328,10 @@ def _extract_data_table_dto_list(api_result: Any) -> Tuple[Optional[List[Any]], 
 def _check_business_status(api_result: Any) -> Optional[str]:
     """
     校验接口业务状态是否成功。
-    当前按 code/status 与 200 对齐进行判断。
+    兼容常见返回约定：
+    - code: 200 或 0 视为成功
+    - status: 200 或 0 视为成功
+    若字段缺失也按通过处理。
     返回 None 表示通过，否则返回可读错误信息。
     """
     if not isinstance(api_result, dict):
@@ -336,7 +339,7 @@ def _check_business_status(api_result: Any) -> Optional[str]:
 
     code = api_result.get("code")
     status = api_result.get("status")
-    if code not in (None, 200) or status not in (None, 200):
+    if code not in (None, 0, 200) or status not in (None, 0, 200):
         message = _flatten_value(api_result.get("message") or "业务状态非成功")
         return f"接口业务错误: code={code}, status={status}, message={message}"
     return None

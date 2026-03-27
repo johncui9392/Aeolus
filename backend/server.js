@@ -26,6 +26,7 @@ import { requireAuth, requireTier, trackUsage } from './middleware/auth.js'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = path.resolve(__dirname, '..')
 const PORT = process.env.PORT || 3001
+const SNAPSHOT_ROOT = path.join(PROJECT_ROOT, 'tmp', 'skill-response-snapshots')
 
 const app = express()
 app.use(cors())
@@ -92,6 +93,56 @@ function getActiveKey(provider) {
   return fileKey
 }
 
+function makeRunId() {
+  return `${new Date().toISOString().replace(/[:.]/g, '-')}_${Math.random().toString(36).slice(2, 8)}`
+}
+
+function ensureDir(dirPath) {
+  fs.mkdirSync(dirPath, { recursive: true })
+}
+
+function writeSnapshotFile(baseDir, fileName, data) {
+  ensureDir(baseDir)
+  const filePath = path.join(baseDir, fileName)
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
+  return filePath
+}
+
+function buildStandardResult({
+  skillId,
+  skillName,
+  query,
+  selectType = '',
+  parsedResult,
+  snapshotDir = '',
+  protocolStatus = 'ok',
+  error = null
+}) {
+  return {
+    protocolVersion: '1.0.0-draft',
+    status: protocolStatus,
+    meta: {
+      skillId,
+      skillName,
+      query,
+      selectType,
+      generatedAt: new Date().toISOString()
+    },
+    payload: {
+      fileType: parsedResult?.fileType || 'text',
+      fileName: parsedResult?.fileName || '',
+      sheetCount: Array.isArray(parsedResult?.sheets) ? parsedResult.sheets.length : 0,
+      sheets: parsedResult?.sheets || [],
+      description: parsedResult?.description || '',
+      rawOutput: parsedResult?.rawOutput || ''
+    },
+    diagnostics: {
+      snapshotDir,
+      error
+    }
+  }
+}
+
 // ─── 路由 ─────────────────────────────────────────────────────────
 
 /** 健康检查 */
@@ -136,11 +187,35 @@ app.post('/api/query', requireAuth, trackUsage, async (req, res) => {
 
   const scriptPath = path.join(skill._scriptDir, skill.script || 'get_data.py')
   const args = buildArgs(skill, query, selectType)
+  const runId = makeRunId()
+  const snapshotDir = path.join(SNAPSHOT_ROOT, skillId, runId)
 
   let stdout = ''
   try {
     stdout = await runPythonScript(scriptPath, args, { [provider.envVar]: apiKey })
     const result = parseOutputToJson(stdout)
+    writeSnapshotFile(snapshotDir, 'request.json', {
+      skillId,
+      skillName: skill.title,
+      query,
+      selectType: selectType || '',
+      scriptPath,
+      args,
+      createdAt: new Date().toISOString()
+    })
+    writeSnapshotFile(snapshotDir, 'raw-output.json', { rawOutput: stdout })
+    writeSnapshotFile(snapshotDir, 'parsed-result.json', result)
+    const standardResult = buildStandardResult({
+      skillId,
+      skillName: skill.title,
+      query,
+      selectType: selectType || '',
+      parsedResult: result,
+      snapshotDir,
+      protocolStatus: 'ok',
+      error: null
+    })
+    writeSnapshotFile(snapshotDir, 'standard-result.json', standardResult)
 
     res.json({
       success: true,
@@ -148,11 +223,42 @@ app.post('/api/query', requireAuth, trackUsage, async (req, res) => {
       skillName: skill.title,
       query,
       selectType: selectType || '',
+      standardResult,
+      snapshotDir,
       ...result
     })
   } catch (err) {
     console.error(`[/api/query] ${skillId} 执行失败:`, err.message)
-    res.status(500).json({ success: false, error: err.message })
+    writeSnapshotFile(snapshotDir, 'request.json', {
+      skillId,
+      skillName: skill.title,
+      query,
+      selectType: selectType || '',
+      scriptPath,
+      args,
+      createdAt: new Date().toISOString()
+    })
+    writeSnapshotFile(snapshotDir, 'error.json', {
+      error: err.message,
+      createdAt: new Date().toISOString()
+    })
+    const standardResult = buildStandardResult({
+      skillId,
+      skillName: skill.title,
+      query,
+      selectType: selectType || '',
+      parsedResult: null,
+      snapshotDir,
+      protocolStatus: 'error',
+      error: err.message
+    })
+    writeSnapshotFile(snapshotDir, 'standard-result.json', standardResult)
+    res.status(500).json({
+      success: false,
+      error: err.message,
+      snapshotDir,
+      standardResult
+    })
   } finally {
     // 无论成功失败，清理临时文件，保持服务器磁盘干净
     if (stdout) cleanupTempFiles(stdout)

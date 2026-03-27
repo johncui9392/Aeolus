@@ -1,0 +1,14 @@
+{
+  "id": "stockearningsreview",
+  "name": "StockEarningsReview",
+  "title": "上市公司业绩点评",
+  "description": "识别实体并自动选择报告期，生成业绩点评结果及附件说明。",
+  "placeholder": "例如: 贵州茅台 业绩点评",
+  "icon": "FileText",
+  "category": "research",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}"]
+}

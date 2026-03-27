@@ -1,0 +1,14 @@
+{
+  "id": "industrystocktracker",
+  "name": "IndustryStockTracker",
+  "title": "行业/个股跟踪报告",
+  "description": "生成行业或个股跟踪报告，返回总结并保存 PDF/DOCX 附件。",
+  "placeholder": "例如: 光伏行业近期跟踪",
+  "icon": "FileText",
+  "category": "research",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "generate_industry_stock_tracker_report.py",
+  "argsTemplate": ["--query", "{query}"]
+}

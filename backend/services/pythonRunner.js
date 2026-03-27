@@ -78,13 +78,19 @@ export async function runPythonScript(scriptPath, args = [], extraEnv = {}) {
   }
 
   return new Promise((resolve, reject) => {
+    // 避免宿主机 PYTHONHOME/PYTHONPATH 污染 venv，触发
+    // "Could not find platform independent libraries <prefix>"。
+    const childEnv = {
+      ...process.env,
+      ...extraEnv,
+      PYTHONIOENCODING: 'utf-8',
+      PYTHONUTF8: '1'
+    }
+    delete childEnv.PYTHONHOME
+    delete childEnv.PYTHONPATH
+
     const proc = spawn(pythonPath, [scriptPath, ...args], {
-      env: {
-        ...process.env,
-        ...extraEnv,
-        PYTHONIOENCODING: 'utf-8',
-        PYTHONUTF8: '1'
-      },
+      env: childEnv,
       cwd: PROJECT_ROOT,
       shell: false,
       windowsHide: true
@@ -256,7 +262,8 @@ export function parseOutputToJson(stdout) {
  */
 export function cleanupTempFiles(stdout) {
   const { dataFiles, descFile } = extractFilePaths(stdout)
-  const all = [...dataFiles, descFile].filter(Boolean)
+  // 保留 txt 描述文件，便于排查“前端未拿到内容”场景。
+  const all = [...dataFiles].filter(Boolean)
   for (const fp of all) {
     try {
       if (fs.existsSync(fp)) fs.unlinkSync(fp)

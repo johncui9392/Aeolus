@@ -147,6 +147,17 @@ export default function App() {
   const [fileType, setFileType] = useState('text')
   const [fileName, setFileName] = useState('')
 
+  const resetResultState = useCallback(() => {
+    setQueryResult(null)
+    setError(null)
+    setSheetData([])
+    setActiveSheetName('')
+    setDescription('')
+    setRawOutput('')
+    setFileType('text')
+    setFileName('')
+  }, [])
+
   // ── UI 状态
   const [themeId, setThemeId] = useState(() => {
     try { return localStorage.getItem(THEME_KEY) || 'palette-05' } catch { return 'palette-05' }
@@ -211,14 +222,7 @@ export default function App() {
   // ── 新会话
   const handleNewSession = () => {
     setQuery('')
-    setQueryResult(null)
-    setError(null)
-    setSheetData([])
-    setActiveSheetName('')
-    setDescription('')
-    setRawOutput('')
-    setFileType('text')
-    setFileName('')
+    resetResultState()
   }
 
   // ── 提交查询
@@ -229,9 +233,7 @@ export default function App() {
     if (!query.trim()) setQuery(effectiveQuery)
 
     setLoading(true)
-    setError(null)
-    setQueryResult(null)
-    setSheetData([])
+    resetResultState()
 
     try {
       const res = await axios.post(`${API_BASE}/api/query`, {
@@ -282,9 +284,7 @@ export default function App() {
     if (skill) setSelectedSkill(skill)
     setQuery(item.query || '')
     setSelectType(item.selectType || 'A股')
-    setError(null)
-    setQueryResult(null)
-    setSheetData([])
+    resetResultState()
   }
 
   // ── 前端导出
@@ -498,9 +498,7 @@ export default function App() {
                         onClick={() => {
                           setSelectedSkill(skill)
                           setQuery('')
-                          setError(null)
-                          setQueryResult(null)
-                          setSheetData([])
+                          resetResultState()
                         }}
                         className={`px-4 py-3 rounded-2xl ${!isActive ? 'bg-surface hover:bg-surface-variant/50 border border-outline-variant/30' : ''}`}
                       >

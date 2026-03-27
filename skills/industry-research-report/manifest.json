@@ -1,0 +1,14 @@
+{
+  "id": "industryresearch",
+  "name": "IndustryResearchReport",
+  "title": "行业研究报告",
+  "description": "根据行业关键词生成深度研究报告，并输出 PDF/DOCX 附件。",
+  "placeholder": "例如: 半导体",
+  "icon": "FileText",
+  "category": "research",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}"]
+}

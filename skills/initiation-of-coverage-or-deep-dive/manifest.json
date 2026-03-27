@@ -1,0 +1,14 @@
+{
+  "id": "deepresearch",
+  "name": "InitiationOrDeepDive",
+  "title": "首次覆盖/深度研究",
+  "description": "生成首次覆盖或深度研究报告，并保存 PDF/DOCX 附件。",
+  "placeholder": "例如: 请对宁德时代做首次覆盖",
+  "icon": "FileText",
+  "category": "research",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "generate_deep_research_report.py",
+  "argsTemplate": ["{query}"]
+}
