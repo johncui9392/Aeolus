@@ -168,6 +168,22 @@ async def generate_report(query: str, output_dir: Path) -> Dict:
         if _save_base64_file(word_b64, word_path):
             result["word_file_path"] = str(word_path)
 
+    desc_path = output_dir / f"initiation_of_coverage_or_deep_dive_{unique_suffix}_description.txt"
+    desc_lines = [
+        "首次覆盖/深度研究报告结果说明",
+        "=" * 40,
+        f"查询内容: {query}",
+        f"标题: {result.get('title') or ''}",
+        f"PDF: {result.get('pdf_file_path') or ''}",
+        f"DOCX: {result.get('word_file_path') or ''}",
+        f"分享链接: {result.get('shareUrl') or ''}",
+        "",
+        "摘要内容:",
+        str(result.get("content") or ""),
+    ]
+    desc_path.write_text("\n".join(desc_lines), encoding="utf-8")
+    result["description_path"] = str(desc_path)
+
     return result
 
 
@@ -216,6 +232,7 @@ def run_cli() -> None:
     print(f"word_file_path: {result['word_file_path']}")
     print(f"title: {result['title']}")
     print(f"share_url: {result['shareUrl']}")
+    print(f"description_path: {result.get('description_path', '')}")
 
 
 if __name__ == "__main__":

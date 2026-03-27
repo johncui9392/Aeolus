@@ -1,6 +1,5 @@
 import argparse
 import asyncio
-import json
 import uuid
 from pathlib import Path
 from typing import Any, Dict
@@ -27,7 +26,7 @@ async def query_stock_earnings_review(query: str, output_dir: Path) -> Dict[str,
         review = await call_review_api(
             entity=entity,
             report_date=matched.report_date,
-            attachment_dir=str(output_dir / "attachments"),
+            attachment_dir=str(output_dir),
             debug=False,
         )
     except Exception as exc:
@@ -35,6 +34,22 @@ async def query_stock_earnings_review(query: str, output_dir: Path) -> Dict[str,
         return result
 
     unique_suffix = uuid.uuid4().hex[:8]
+    file_map = review.get("files") or {}
+    for key, label in (("pdf", "pdf"), ("word", "doc"), ("dataSheet", "xlsx")):
+        old_path = file_map.get(key)
+        if not old_path:
+            continue
+        old = Path(old_path)
+        if not old.exists():
+            continue
+        new_path = output_dir / f"stock_earnings_review_{unique_suffix}_{label}{old.suffix}"
+        try:
+            old.replace(new_path)
+            file_map[key] = str(new_path)
+        except OSError:
+            # 重命名失败时保留原路径，避免影响主流程。
+            file_map[key] = str(old)
+
     desc_path = output_dir / f"stock_earnings_review_{unique_suffix}_description.txt"
     lines = [
         "上市公司业绩点评结果说明",

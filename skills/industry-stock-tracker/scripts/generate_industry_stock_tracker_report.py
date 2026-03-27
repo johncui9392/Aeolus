@@ -168,6 +168,41 @@ def _render_content(entity_type: str, summary_content: str) -> str:
     )
 
 
+def _write_description_file(
+    *,
+    output_dir: Path,
+    query: str,
+    title: str,
+    content: str,
+    share_url: str,
+    attachments: List[Dict[str, str]],
+) -> str:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    file_name = f"industry_stock_tracker_{uuid.uuid4().hex[:8]}_description.txt"
+    desc_path = output_dir / file_name
+    lines = [
+        "行业/个股跟踪报告结果说明",
+        "=" * 40,
+        f"查询内容: {query}",
+        f"标题: {title}",
+        f"分享链接: {share_url}",
+        "",
+        "附件:",
+    ]
+    if attachments:
+        for att in attachments:
+            lines.append(f"  - {att.get('type', 'FILE')}: {att.get('url', '')}")
+    else:
+        lines.append("  - （无）")
+    lines.extend([
+        "",
+        "摘要内容:",
+        content or "",
+    ])
+    desc_path.write_text("\n".join(lines), encoding="utf-8")
+    return str(desc_path)
+
+
 def build_report_output(
     query: str,
     payload: Dict[str, Any]
@@ -209,6 +244,14 @@ def build_report_output(
         "attachments": attachments,
         "share_url": share_url
     }
+    output["description_path"] = _write_description_file(
+        output_dir=Path(DEFAULT_OUTPUT_DIR),
+        query=query,
+        title=title,
+        content=output["content"],
+        share_url=share_url,
+        attachments=attachments,
+    )
     return output
 
 
@@ -237,6 +280,8 @@ def main() -> None:
             payload=payload,
         )
         print(json.dumps(output, ensure_ascii=False))
+        if output.get("description_path"):
+            print(f"描述: {output['description_path']}")
         sys.exit(0 if output.get("ok") else 2)
     except ApiCallError as e:
         err = {

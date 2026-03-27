@@ -712,7 +712,20 @@ export default function App() {
               ) : (
                 /* 默认文本/空状态视图 */
                 <div className="flex-1 min-h-0 p-8 overflow-auto custom-scrollbar bg-surface">
-                  {rawOutput ? (
+                  {description ? (
+                    <div className="max-w-4xl mx-auto space-y-4">
+                      <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-low p-5">
+                        <div className="text-xs font-bold tracking-wider text-primary mb-2 uppercase">Description</div>
+                        <pre className="text-sm text-on-surface-variant whitespace-pre-wrap font-mono leading-relaxed">{description}</pre>
+                      </div>
+                      {rawOutput && (
+                        <details className="rounded-2xl border border-outline-variant/30 bg-surface-container-low p-4">
+                          <summary className="cursor-pointer text-sm font-semibold text-on-surface">查看原始日志</summary>
+                          <pre className="mt-3 text-xs text-on-surface-variant whitespace-pre-wrap font-mono leading-relaxed">{rawOutput}</pre>
+                        </details>
+                      )}
+                    </div>
+                  ) : rawOutput ? (
                     <pre className="text-base text-on-surface-variant whitespace-pre-wrap font-mono max-w-4xl mx-auto leading-relaxed">{rawOutput}</pre>
                   ) : (
                     <div className="h-full flex flex-col items-center justify-center text-center text-on-surface-variant">
