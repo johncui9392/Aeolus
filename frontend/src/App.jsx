@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import * as XLSXLib from 'xlsx'
 import axios from 'axios'
+import ReactMarkdown from 'react-markdown'
 import {
   Database, Search, TrendingUp, Target, Loader2, XCircle,
   FileText, Download, Terminal, MessageSquarePlus, ChevronRight,
@@ -118,6 +119,52 @@ function parseNewsItems(raw) {
 function truncate(text, max = 260) {
   const s = String(text || '').replace(/\s+/g, ' ').trim()
   return s.length <= max ? s : `${s.slice(0, max)}...`
+}
+
+function parseQaMarkdown(raw) {
+  const text = String(raw || '').trim()
+  if (!text) return ''
+  const tryParse = (s) => {
+    try {
+      return JSON.parse(s)
+    } catch {
+      return null
+    }
+  }
+  let obj = tryParse(text)
+  if (!obj) {
+    const m = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
+    if (m?.[1]) obj = tryParse(m[1].trim())
+  }
+  if (!obj || typeof obj !== 'object') return ''
+  if (!obj.ok || !obj.answer) return ''
+
+  const answer = String(obj.answer || '').trim()
+  const references = Array.isArray(obj.references) ? obj.references : []
+  const cited = references.filter((r) => String(r?.referenceType || '') === 'CITED_REFERENCE')
+  if (!cited.length) return answer
+
+  const lines = ['### 溯源参考']
+  for (const ref of cited) {
+    const type = String(ref?.type || '').trim()
+    const title = String(ref?.title || '').trim()
+    const url = String(ref?.jumpUrl || '').trim()
+    const source = String(ref?.source || '').trim()
+    const markdown = String(ref?.markdown || '').trim()
+
+    if ((type === '查数' || type === '选股/基') && markdown) {
+      lines.push(`\n**${type}：**\n${markdown}`)
+      continue
+    }
+    if (title) {
+      if (url && source) lines.push(`- [${title}](${url})（来源：${source}）`)
+      else if (url) lines.push(`- [${title}](${url})`)
+      else if (source) lines.push(`- ${title}（来源：${source}）`)
+      else lines.push(`- ${title}`)
+    }
+  }
+
+  return `${answer}\n\n${lines.join('\n')}`.trim()
 }
 
 // ─── 主应用 ──────────────────────────────────────────────────────────────────
@@ -242,14 +289,17 @@ export default function App() {
         selectType: selectedSkill.needsSelectType ? selectType : undefined
       })
       const data = res.data
+      const qaMarkdown = parseQaMarkdown(data.rawOutput || '')
+      const finalDescription = qaMarkdown || data.description || ''
+      const finalFileType = qaMarkdown ? 'markdown' : (data.fileType || 'text')
 
       // 直接消费 JSON 结果，无需再次请求文件
       setQueryResult(data)
       setSheetData(data.sheets || [])
       setActiveSheetName(data.sheets?.[0]?.name || '')
-      setFileType(data.fileType || 'text')
+      setFileType(finalFileType)
       setFileName(data.fileName || 'data')
-      setDescription(data.description || '')
+      setDescription(finalDescription)
       setRawOutput(data.rawOutput || '')
       setPreviewView('table')
 
@@ -677,9 +727,15 @@ export default function App() {
               ) : hasTableData && previewView === 'desc' ? (
                 /* Description 视图 */
                 <div className="flex-1 overflow-auto p-8 bg-surface-container-lowest custom-scrollbar">
-                  <pre className="text-primary text-sm leading-relaxed font-mono whitespace-pre-wrap max-w-4xl mx-auto">
-                    {description || '无说明'}
-                  </pre>
+                  {fileType === 'markdown' ? (
+                    <article className="max-w-4xl mx-auto text-on-surface leading-7">
+                      <ReactMarkdown>{description || '无说明'}</ReactMarkdown>
+                    </article>
+                  ) : (
+                    <pre className="text-primary text-sm leading-relaxed font-mono whitespace-pre-wrap max-w-4xl mx-auto">
+                      {description || '无说明'}
+                    </pre>
+                  )}
                 </div>
               ) : newsItems.length > 0 ? (
                 /* 资讯卡片视图 */
@@ -716,7 +772,13 @@ export default function App() {
                     <div className="max-w-4xl mx-auto space-y-4">
                       <div className="rounded-2xl border border-outline-variant/30 bg-surface-container-low p-5">
                         <div className="text-xs font-bold tracking-wider text-primary mb-2 uppercase">Description</div>
-                        <pre className="text-sm text-on-surface-variant whitespace-pre-wrap font-mono leading-relaxed">{description}</pre>
+                        {fileType === 'markdown' ? (
+                          <article className="text-sm text-on-surface-variant leading-7">
+                            <ReactMarkdown>{description}</ReactMarkdown>
+                          </article>
+                        ) : (
+                          <pre className="text-sm text-on-surface-variant whitespace-pre-wrap font-mono leading-relaxed">{description}</pre>
+                        )}
                       </div>
                       {rawOutput && (
                         <details className="rounded-2xl border border-outline-variant/30 bg-surface-container-low p-4">

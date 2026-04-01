@@ -1,0 +1,17 @@
+{
+  "id": "mx_financial_assistant",
+  "name": "mx_financial_assistant",
+  "title": "金融问答",
+  "description": "基于东方财富金融数据库的智能金融问答，支持标准模式与深度思考模式，回答以 Markdown 展示。",
+  "placeholder": "例如: 帮我分析一下当前半导体板块的机会和风险",
+  "icon": "MessageSquare",
+  "category": "analysis",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "generate_answer.py",
+  "argsTemplate": [
+    "--query",
+    "{query}"
+  ]
+}
