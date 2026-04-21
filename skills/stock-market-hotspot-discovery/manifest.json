@@ -1,0 +1,14 @@
+{
+  "id": "stockmarkethotspot",
+  "name": "StockMarketHotspotDiscovery",
+  "title": "股市热点发现",
+  "description": "识别 A 股市场热点，汇总热门资讯与热门股票等 Markdown 报告。",
+  "placeholder": "例如: 今日热点是什么",
+  "icon": "TrendingUp",
+  "category": "market",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}"]
+}

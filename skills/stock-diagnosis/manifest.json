@@ -1,0 +1,14 @@
+{
+  "id": "stockdiagnosis",
+  "name": "StockDiagnosis",
+  "title": "股票综合诊断",
+  "description": "对单只沪深京 A 股进行基本面、资金面与风险等维度的结构化 Markdown 诊断。",
+  "placeholder": "例如: 海康威视值得继续持有吗",
+  "icon": "Search",
+  "category": "market",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}"]
+}

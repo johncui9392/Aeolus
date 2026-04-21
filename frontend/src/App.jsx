@@ -17,6 +17,14 @@ const HISTORY_KEY = 'aeolus_query_history'
 const THEME_KEY = 'aeolus_theme'
 const MAX_HISTORY = 20
 
+/** 历史记录按 createdAt 升序排列（先添加在前，后添加在后） */
+function normalizeHistoryByCreatedAt(items) {
+  if (!Array.isArray(items)) return []
+  return [...items].sort(
+    (a, b) => new Date(a?.createdAt || 0).getTime() - new Date(b?.createdAt || 0).getTime()
+  )
+}
+
 const THEME_OPTIONS = [
   { id: 'palette-05', name: '紫靛赛博', desc: '深紫底 + 靛蓝高亮', swatch: 'from-indigo-400 to-cyan-400' },
   { id: 'palette-01', name: '蓝绿科技', desc: '深色背景 + 蓝绿高亮', swatch: 'from-cyan-300 to-cyan-500' }
@@ -167,6 +175,127 @@ function parseQaMarkdown(raw) {
   return `${answer}\n\n${lines.join('\n')}`.trim()
 }
 
+/** 去掉妙想类脚本打在 stdout 前的元信息行，便于把正文当 Markdown 渲染 */
+function stripLeadingCliMeta(stdout) {
+  const lines = String(stdout || '').split(/\r?\n/)
+  const metaRes = [
+    /^Saved:\s*\S/,
+    /^Title:\s*.+/,
+    /^ShareUrl:\s*\S/i,
+    /^Share URL:\s*\S/i,
+    /^(pdf|word|docx):\s*\S/i
+  ]
+  let i = 0
+  for (; i < lines.length; i++) {
+    const t = lines[i].trim()
+    if (t === '') continue
+    const isMeta = metaRes.some((re) => re.test(t))
+    if (!isMeta) break
+  }
+  return lines.slice(i).join('\n').trim()
+}
+
+/**
+ * 将整段 stdout 若为 JSON 时抽出可展示正文（content/displayData）、错误或格式化为代码块。
+ * 返回 null 表示交给后续逻辑（如资讯列表 parseNewsItems）。
+ */
+function tryParseJsonStdoutToMarkdown(text) {
+  const t = String(text || '').trim()
+  if (!t.startsWith('{')) return null
+  try {
+    const obj = JSON.parse(t)
+    if (!obj || typeof obj !== 'object') return null
+    if (Array.isArray(obj.data)) return null
+
+    if (typeof obj.content === 'string' && obj.content.trim()) return obj.content.trim()
+
+    const dd = obj.data?.displayData
+    if (typeof dd === 'string' && dd.trim()) return dd.trim()
+
+    if (typeof obj.error === 'string' && obj.error.trim()) {
+      return `### 错误\n\n${obj.error.trim()}`
+    }
+
+    if (obj.records !== undefined || obj.header !== undefined || obj.section_finance !== undefined) {
+      return ['```json', JSON.stringify(obj, null, 2), '```'].join('\n')
+    }
+
+    return ['```json', JSON.stringify(obj, null, 2), '```'].join('\n')
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 统一从接口结果解析「给用户看」的正文与展示类型（表格技能保留 description + fileType）。
+ */
+function resolveSkillDisplay(data) {
+  const raw = data.rawOutput || ''
+  const qa = parseQaMarkdown(raw)
+  if (qa) return { description: qa, fileType: 'markdown' }
+
+  const hasTable =
+    (data.fileType === 'xlsx' || data.fileType === 'csv') &&
+    Array.isArray(data.sheets) &&
+    data.sheets.length > 0
+  if (hasTable) {
+    return { description: data.description || '', fileType: data.fileType || 'text' }
+  }
+
+  const stripped = stripLeadingCliMeta(raw)
+  const head = stripped.trim()
+
+  if (/^Error:/i.test(head)) {
+    const msg = stripped.replace(/^Error:\s*/i, '').trim()
+    return { description: `### 错误\n\n${msg}`, fileType: 'markdown' }
+  }
+
+  const fromJson = tryParseJsonStdoutToMarkdown(stripped)
+  if (fromJson !== null) return { description: fromJson, fileType: 'markdown' }
+
+  if (stripped) return { description: stripped, fileType: 'markdown' }
+
+  return { description: data.description || '', fileType: data.fileType || 'text' }
+}
+
+function tableObjectToRows(sectionTable = {}, nameField = '公司名称') {
+  const headName = Array.isArray(sectionTable.headName) ? sectionTable.headName : []
+  if (!headName.length) return []
+  return Object.entries(sectionTable)
+    .filter(([k, v]) => k !== 'headName' && Array.isArray(v))
+    .map(([name, arr]) => {
+      const row = { [nameField]: name }
+      headName.forEach((h, i) => { row[h] = arr[i] ?? '' })
+      return row
+    })
+}
+
+function parseComparableCompanySheets(rawOutput) {
+  const text = String(rawOutput || '').trim()
+  if (!text.startsWith('{')) return { sheets: [], note: '' }
+  try {
+    const obj = JSON.parse(text)
+    const financeRows = tableObjectToRows(obj?.section_finance?.table, '公司名称')
+    const valuationRows = tableObjectToRows(obj?.section_valuation?.table, '公司名称')
+    if (!financeRows.length && !valuationRows.length) return { sheets: [], note: '' }
+
+    const financeHeaders = financeRows.length ? Object.keys(financeRows[0]) : []
+    const valuationHeaders = valuationRows.length ? Object.keys(valuationRows[0]) : []
+    const sheets = []
+    if (financeRows.length) {
+      sheets.push({ name: '经营统计与财务指标', headers: financeHeaders, rows: financeRows, rowCount: financeRows.length })
+    }
+    if (valuationRows.length) {
+      sheets.push({ name: '估值情况', headers: valuationHeaders, rows: valuationRows, rowCount: valuationRows.length })
+    }
+
+    const note = String(obj?.header?.frontendTitle || '').trim()
+    return { sheets, note }
+  } catch {
+    return { sheets: [], note: '' }
+  }
+}
+
 // ─── 主应用 ──────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -213,7 +342,12 @@ export default function App() {
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false)
   const [ribbonPieces, setRibbonPieces] = useState([])
   const [historyItems, setHistoryItems] = useState(() => {
-    try { const raw = localStorage.getItem(HISTORY_KEY); return raw ? JSON.parse(raw) : [] } catch { return [] }
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY)
+      return raw ? normalizeHistoryByCreatedAt(JSON.parse(raw)) : []
+    } catch {
+      return []
+    }
   })
 
   // ── API Key 状态
@@ -253,7 +387,7 @@ export default function App() {
   }, [])
 
   const pushHistory = useCallback((entry) => {
-    saveHistory([entry, ...historyItems].slice(0, MAX_HISTORY))
+    saveHistory([...historyItems, entry].slice(-MAX_HISTORY))
   }, [historyItems, saveHistory])
 
   const formatTime = (iso) => {
@@ -289,17 +423,21 @@ export default function App() {
         selectType: selectedSkill.needsSelectType ? selectType : undefined
       })
       const data = res.data
-      const qaMarkdown = parseQaMarkdown(data.rawOutput || '')
-      const finalDescription = qaMarkdown || data.description || ''
-      const finalFileType = qaMarkdown ? 'markdown' : (data.fileType || 'text')
+      const resolved = resolveSkillDisplay(data)
+      const comparableParsed = parseComparableCompanySheets(data.rawOutput || '')
+      const displaySheets = (data.sheets && data.sheets.length) ? data.sheets : comparableParsed.sheets
+      const descriptionText = comparableParsed.note
+        ? [resolved.description, `> ${comparableParsed.note}`].filter(Boolean).join('\n\n')
+        : resolved.description
+      const displayFileType = displaySheets.length ? (data.fileType === 'csv' ? 'csv' : 'xlsx') : resolved.fileType
 
       // 直接消费 JSON 结果，无需再次请求文件
       setQueryResult(data)
-      setSheetData(data.sheets || [])
-      setActiveSheetName(data.sheets?.[0]?.name || '')
-      setFileType(finalFileType)
+      setSheetData(displaySheets)
+      setActiveSheetName(displaySheets?.[0]?.name || '')
+      setFileType(displayFileType)
       setFileName(data.fileName || 'data')
-      setDescription(finalDescription)
+      setDescription(descriptionText)
       setRawOutput(data.rawOutput || '')
       setPreviewView('table')
 

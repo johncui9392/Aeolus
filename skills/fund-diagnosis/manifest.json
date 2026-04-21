@@ -1,0 +1,14 @@
+{
+  "id": "funddiagnosis",
+  "name": "FundDiagnosis",
+  "title": "基金综合诊断",
+  "description": "对单只公募基金进行收益、风险与持仓等维度的结构化 Markdown 诊断。",
+  "placeholder": "例如: 华夏成长混合基金",
+  "icon": "Database",
+  "category": "market",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}"]
+}

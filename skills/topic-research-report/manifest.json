@@ -1,0 +1,14 @@
+{
+  "id": "topicresearchreport",
+  "name": "TopicResearchReport",
+  "title": "专题研究报告",
+  "description": "按主题、事件或政策生成深度专题研究，可输出 Markdown 正文及 DOCX/PDF 附件。",
+  "placeholder": "例如: 美联储加息对A股影响",
+  "icon": "FileText",
+  "category": "research",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}"]
+}

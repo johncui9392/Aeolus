@@ -1,0 +1,14 @@
+{
+  "id": "comparablecompanyanalysis",
+  "name": "ComparableCompanyAnalysis",
+  "title": "可比公司分析",
+  "description": "对 A 股目标公司与同业进行经营指标、估值倍数横向比较，并生成主题化 Excel 报告。",
+  "placeholder": "例如: 东方财富",
+  "icon": "Target",
+  "category": "research",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}"]
+}
