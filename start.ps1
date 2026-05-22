@@ -7,46 +7,52 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 
 $repoRoot = $PSScriptRoot
 $localKeyFile = Join-Path $repoRoot "EM_API_KEY.local"
+$windKeyFile = Join-Path $repoRoot "WIND_API_KEY.local"
 $sharedPython = Join-Path $repoRoot "python\venv\Scripts\python.exe"
 $backendDir = Join-Path $repoRoot "backend"
 $frontendDir = Join-Path $repoRoot "frontend"
 $hasEnvKey = -not [string]::IsNullOrWhiteSpace($env:EM_API_KEY)
+$hasWindEnvKey = -not [string]::IsNullOrWhiteSpace($env:WIND_API_KEY)
 $hasLocalKey = $false
+$hasWindLocalKey = $false
 
 Write-Host "Aeolus" -ForegroundColor Cyan
 Write-Host "Financial Skill Platform" -ForegroundColor DarkCyan
 Write-Host ""
 
 # ── API Key 检查 ───────────────────────────────────────────
-if (Test-Path $localKeyFile) {
-    $localLines = Get-Content $localKeyFile -Encoding UTF8 | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith("#") }
-    foreach ($line in $localLines) {
+function Test-KeyFile($path) {
+    if (-not (Test-Path $path)) { return $false }
+    $lines = Get-Content $path -Encoding UTF8 | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith("#") }
+    foreach ($line in $lines) {
         if ($line -match "=") {
             $parts = $line.Split("=", 2)
-            if ($parts.Count -eq 2 -and -not [string]::IsNullOrWhiteSpace($parts[1])) {
-                $hasLocalKey = $true; break
-            }
-        } elseif (-not [string]::IsNullOrWhiteSpace($line)) {
-            $hasLocalKey = $true; break
-        }
+            if ($parts.Count -eq 2 -and -not [string]::IsNullOrWhiteSpace($parts[1])) { return $true }
+        } elseif (-not [string]::IsNullOrWhiteSpace($line)) { return $true }
     }
+    return $false
 }
 
-if (-not $hasEnvKey -and -not $hasLocalKey) {
-    Write-Host "[ERROR] API Key 未配置" -ForegroundColor Red
+$hasLocalKey = Test-KeyFile $localKeyFile
+$hasWindLocalKey = Test-KeyFile $windKeyFile
+
+if (-not $hasEnvKey -and -not $hasLocalKey -and -not $hasWindEnvKey -and -not $hasWindLocalKey) {
+    Write-Host "[ERROR] 未配置任何 API Key" -ForegroundColor Red
     Write-Host ""
-    Write-Host "请先配置 API Key:" -ForegroundColor Yellow
-    Write-Host "  1. 复制 EM_API_KEY.local.example 为 EM_API_KEY.local" -ForegroundColor Green
-    Write-Host "  2. 填写: default=your_em_api_key" -ForegroundColor Green
-    Write-Host ""
-    Write-Host "或在当前终端临时设置:" -ForegroundColor Yellow
-    Write-Host '  $env:EM_API_KEY="your_em_api_key"' -ForegroundColor Green
+    Write-Host "妙想技能: 复制 EM_API_KEY.local.example -> EM_API_KEY.local" -ForegroundColor Green
+    Write-Host "万得技能: 复制 WIND_API_KEY.local.example -> WIND_API_KEY.local" -ForegroundColor Green
+    Write-Host "或在 Aeolus 用户中心添加 Key" -ForegroundColor Yellow
     Write-Host ""
     exit 1
 }
 
-if ($hasEnvKey) { Write-Host "[OK] 检测到环境变量 EM_API_KEY" -ForegroundColor Green }
-else { Write-Host "[OK] 检测到 EM_API_KEY.local" -ForegroundColor Green }
+if ($hasEnvKey) { Write-Host "[OK] EM_API_KEY (环境变量)" -ForegroundColor Green }
+elseif ($hasLocalKey) { Write-Host "[OK] EM_API_KEY.local" -ForegroundColor Green }
+else { Write-Host "[--] 妙想 EM_API_KEY 未配置（仅万得技能时可忽略）" -ForegroundColor DarkYellow }
+
+if ($hasWindEnvKey) { Write-Host "[OK] WIND_API_KEY (环境变量)" -ForegroundColor Green }
+elseif ($hasWindLocalKey) { Write-Host "[OK] WIND_API_KEY.local" -ForegroundColor Green }
+else { Write-Host "[--] 万得 WIND_API_KEY 未配置（仅用妙想技能时可忽略）" -ForegroundColor DarkYellow }
 
 # ── 运行环境检查 ────────────────────────────────────────────
 $nodeVersion = node --version 2>$null

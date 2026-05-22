@@ -19,6 +19,6 @@ Until a dedicated security contact is configured, report via your private mainta
 
 ## Secret Handling
 
-- Never commit `EM_API_KEY.local` or real API keys.
+- Never commit `EM_API_KEY.local`, `WIND_API_KEY.local`, or real API keys.
 - If a key is exposed, rotate it immediately.
 - Use placeholder values like `your_em_api_key` in docs and examples.

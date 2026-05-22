@@ -10,9 +10,9 @@ Thanks for your interest in contributing.
 pnpm install
 ```
 
-2. Configure API key:
-- Copy `EM_API_KEY.local.example` to `EM_API_KEY.local`
-- Fill in a valid key on the first non-comment line
+2. Configure API keys (as needed):
+- **Eastmoney / MX skills:** `EM_API_KEY.local` from `EM_API_KEY.local.example`
+- **Wind skills:** `WIND_API_KEY.local` from `WIND_API_KEY.local.example` — see [docs/WIND_DATA_SOURCE.md](docs/WIND_DATA_SOURCE.md)
 
 3. Start dev environment:
 

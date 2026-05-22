@@ -40,9 +40,15 @@ loadSkills()
 const API_KEY_PROVIDERS = {
   mx: {
     id: 'mx',
-    label: 'MX API Key',
+    label: 'MX API Key（妙想）',
     envVar: 'EM_API_KEY',
     filePath: path.join(PROJECT_ROOT, 'EM_API_KEY.local')
+  },
+  wind: {
+    id: 'wind',
+    label: 'Wind API Key（万得）',
+    envVar: 'WIND_API_KEY',
+    filePath: path.join(PROJECT_ROOT, 'WIND_API_KEY.local')
   }
 }
 
@@ -177,11 +183,17 @@ app.post('/api/query', requireAuth, trackUsage, async (req, res) => {
     })
   }
 
-  const provider = API_KEY_PROVIDERS.mx
+  const providerId = skill.apiKeyProvider || 'mx'
+  const provider = resolveProvider(providerId)
+  if (!provider) {
+    return res.status(500).json({
+      error: `技能 "${skillId}" 配置了未知的 apiKeyProvider: ${providerId}`
+    })
+  }
   const apiKey = getActiveKey(provider)
   if (!apiKey) {
     return res.status(400).json({
-      error: `${provider.label} 未设置。请在设置中添加 API Key。`
+      error: `${provider.label} 未设置。请在用户中心添加 ${provider.envVar}。`
     })
   }
 

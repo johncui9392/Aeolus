@@ -1,0 +1,20 @@
+# ============================================
+# Wind API Key 配置（万得 · 万得金融数据查询）
+# ============================================
+#
+# 获取 Key:
+#   1. 打开 https://aifinmarket.wind.com.cn
+#   2. 登录后在个人中心获取 WIND_API_KEY
+#      https://aifinmarket.wind.com.cn/#/user/overview
+#
+# 使用步骤:
+#   1. 复制本文件为 WIND_API_KEY.local
+#   2. 在下方填入 Key（格式: 名称=your_key 或单独一行 key）
+#
+# 也可在 Aeolus 用户中心 → API Key 管理 →「万得 Wind」添加
+#
+# 详细说明: docs/WIND_DATA_SOURCE.md
+#
+# ============================================
+
+# default=your_wind_api_key_here

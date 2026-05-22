@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import * as XLSXLib from 'xlsx'
 import axios from 'axios'
@@ -15,7 +15,24 @@ import { useAuth } from './hooks/useAuth.js'
 const API_BASE = import.meta.env.VITE_API_URL || ''
 const HISTORY_KEY = 'aeolus_query_history'
 const THEME_KEY = 'aeolus_theme'
+const SKILL_VENDOR_KEY = 'aeolus_skill_vendor'
 const MAX_HISTORY = 20
+
+/** 技能来源分类（插件商店顶部 Tag 筛选） */
+const SKILL_VENDOR_TAGS = [
+  { id: 'all', label: '全部' },
+  { id: 'mx', label: '东方财富', shortLabel: '妙想', color: 'bg-amber-500/15 text-amber-200 border-amber-400/40' },
+  { id: 'wind', label: 'Wind 万得', shortLabel: '万得', color: 'bg-sky-500/15 text-sky-200 border-sky-400/40' }
+]
+
+function getSkillVendor(skill) {
+  if (!skill) return 'mx'
+  return skill.vendor === 'wind' ? 'wind' : 'mx'
+}
+
+function vendorTagMeta(vendorId) {
+  return SKILL_VENDOR_TAGS.find((t) => t.id === vendorId) || SKILL_VENDOR_TAGS[1]
+}
 
 /** 历史记录按 createdAt 升序排列（先添加在前，后添加在后） */
 function normalizeHistoryByCreatedAt(items) {
@@ -305,7 +322,20 @@ export default function App() {
   // ── 技能插件（从 /api/skills 动态获取）
   const [skills, setSkills] = useState([])
   const [skillsLoading, setSkillsLoading] = useState(true)
+  const [skillVendorFilter, setSkillVendorFilter] = useState(() => {
+    try {
+      const saved = localStorage.getItem(SKILL_VENDOR_KEY)
+      return SKILL_VENDOR_TAGS.some((t) => t.id === saved) ? saved : 'all'
+    } catch {
+      return 'all'
+    }
+  })
   const [selectedSkill, setSelectedSkill] = useState(null)
+
+  const filteredSkills = useMemo(() => {
+    if (skillVendorFilter === 'all') return skills
+    return skills.filter((s) => getSkillVendor(s) === skillVendorFilter)
+  }, [skills, skillVendorFilter])
 
   // ── 查询
   const [query, setQuery] = useState('')
@@ -350,7 +380,8 @@ export default function App() {
     }
   })
 
-  // ── API Key 状态
+  // ── API Key 状态（mx=妙想 / wind=万得）
+  const [apiKeyProvider, setApiKeyProvider] = useState('mx')
   const [apiKeysInfo, setApiKeysInfo] = useState({ providerLabel: 'MX API Key', envVar: 'EM_API_KEY', activeKey: '', activeKeyMasked: '', activeIndex: 0, keys: [] })
   const [apiKeyReveal, setApiKeyReveal] = useState(false)
   const [apiKeyLoading, setApiKeyLoading] = useState(false)
@@ -371,7 +402,10 @@ export default function App() {
       .then((res) => {
         const list = res.data?.skills || []
         setSkills(list)
-        setSelectedSkill(list[0] || null)
+        setSelectedSkill((prev) => {
+          if (prev && list.some((s) => s.id === prev.id)) return prev
+          return list[0] || null
+        })
       })
       .catch(() => {
         // 后端未启动时提供静态兜底（仅 UI 展示，不可执行）
@@ -379,6 +413,21 @@ export default function App() {
       })
       .finally(() => setSkillsLoading(false))
   }, [])
+
+  // 切换技能来源 Tag 时，若当前选中技能不在列表内则自动选中第一项
+  useEffect(() => {
+    try { localStorage.setItem(SKILL_VENDOR_KEY, skillVendorFilter) } catch { /* ignore */ }
+    if (!filteredSkills.length) return
+    if (!selectedSkill || !filteredSkills.some((s) => s.id === selectedSkill.id)) {
+      setSelectedSkill(filteredSkills[0])
+      setQuery('')
+      resetResultState()
+    }
+  }, [skillVendorFilter, filteredSkills])
+
+  const handleSkillVendorChange = (vendorId) => {
+    setSkillVendorFilter(vendorId)
+  }
 
   // ── 历史记录持久化
   const saveHistory = useCallback((items) => {
@@ -490,7 +539,7 @@ export default function App() {
     setApiKeyLoading(true)
     setApiKeyError('')
     try {
-      const res = await axios.get(`${API_BASE}/api/api-keys`, { params: { provider: 'mx' } })
+      const res = await axios.get(`${API_BASE}/api/api-keys`, { params: { provider: apiKeyProvider } })
       if (res.data?.success) setApiKeysInfo(res.data)
       else setApiKeyError(res.data?.error || '加载失败')
     } catch (e) {
@@ -502,7 +551,7 @@ export default function App() {
     setApiKeyLoading(true)
     setApiKeyError('')
     try {
-      const res = await axios.post(`${API_BASE}/api/api-keys`, { provider: 'mx', action, ...payload })
+      const res = await axios.post(`${API_BASE}/api/api-keys`, { provider: apiKeyProvider, action, ...payload })
       if (!res.data?.success) throw new Error(res.data?.error || '操作失败')
       await loadApiKeys()
     } catch (e) {
@@ -518,6 +567,10 @@ export default function App() {
     setNewKeyValue('')
     await loadApiKeys()
   }
+
+  useEffect(() => {
+    if (apiKeyModalOpen) loadApiKeys()
+  }, [apiKeyProvider])
 
   // ── Logo 彩带爆炸
   const triggerLogoBurst = () => {
@@ -675,32 +728,74 @@ export default function App() {
                   <span className="text-sm font-medium">后端未连接，插件商店暂不可用。请启动 backend/ 服务。</span>
                 </div>
               ) : (
-                <div className="flex flex-wrap gap-2.5 mb-6">
-                  {skills.map((skill) => {
-                    const Icon = ICON_MAP[skill.icon] || Puzzle
-                    const isActive = selectedSkill?.id === skill.id
-                    return (
-                      <VibeButton
-                        key={skill.id}
-                        variant={isActive ? 'primary' : 'ghost'}
-                        onClick={() => {
-                          setSelectedSkill(skill)
-                          setQuery('')
-                          resetResultState()
-                        }}
-                        className={`px-4 py-3 rounded-2xl ${!isActive ? 'bg-surface hover:bg-surface-variant/50 border border-outline-variant/30' : ''}`}
-                      >
-                        <Icon className="w-5 h-5 shrink-0" />
-                        <div className="text-left ml-1.5">
-                          <div className="text-[10px] font-mono leading-none mb-1 opacity-80 uppercase tracking-wider">
-                            {skill.name}
-                          </div>
-                          <div className="text-sm font-semibold leading-none">{skill.title}</div>
-                        </div>
-                      </VibeButton>
-                    )
-                  })}
-                </div>
+                <>
+                  <div className="flex flex-wrap items-center gap-2 mb-4">
+                    <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mr-1">技能来源</span>
+                    {SKILL_VENDOR_TAGS.map((tag) => {
+                      const isTagActive = skillVendorFilter === tag.id
+                      const count = tag.id === 'all'
+                        ? skills.length
+                        : skills.filter((s) => getSkillVendor(s) === tag.id).length
+                      return (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => handleSkillVendorChange(tag.id)}
+                          className={`px-3.5 py-1.5 rounded-full text-[12px] font-bold border transition-all ${
+                            isTagActive
+                              ? 'bg-primary text-on-primary border-primary shadow-sm'
+                              : 'bg-surface text-on-surface-variant border-outline-variant/40 hover:border-primary/50 hover:text-on-surface'
+                          }`}
+                        >
+                          {tag.label}
+                          <span className={`ml-1.5 tabular-nums ${isTagActive ? 'opacity-90' : 'opacity-60'}`}>
+                            {count}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {filteredSkills.length === 0 ? (
+                    <div className="mb-6 p-4 rounded-2xl bg-surface-container text-on-surface-variant text-sm">
+                      该分类下暂无技能
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2.5 mb-6">
+                      {filteredSkills.map((skill) => {
+                        const Icon = ICON_MAP[skill.icon] || Puzzle
+                        const isActive = selectedSkill?.id === skill.id
+                        const vendor = getSkillVendor(skill)
+                        const vendorMeta = vendorTagMeta(vendor)
+                        return (
+                          <VibeButton
+                            key={skill.id}
+                            variant={isActive ? 'primary' : 'ghost'}
+                            onClick={() => {
+                              setSelectedSkill(skill)
+                              setQuery('')
+                              resetResultState()
+                            }}
+                            className={`px-4 py-3 rounded-2xl ${!isActive ? 'bg-surface hover:bg-surface-variant/50 border border-outline-variant/30' : ''}`}
+                          >
+                            <Icon className="w-5 h-5 shrink-0" />
+                            <div className="text-left ml-1.5 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                <span className="text-[10px] font-mono leading-none opacity-80 uppercase tracking-wider truncate max-w-[120px]">
+                                  {skill.name}
+                                </span>
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border leading-none shrink-0 ${vendorMeta.color}`}>
+                                  {vendorMeta.shortLabel}
+                                </span>
+                              </div>
+                              <div className="text-sm font-semibold leading-snug">{skill.title}</div>
+                            </div>
+                          </VibeButton>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
               )}
 
               <label className="flex items-center text-sm font-bold text-primary mb-3 uppercase tracking-wider">
@@ -961,7 +1056,22 @@ export default function App() {
               <div className="px-6 py-5 border-b border-outline-variant/20 flex items-center justify-between bg-surface-container-highest">
                 <div>
                   <h3 className="text-base font-bold text-on-surface">API Key 管理</h3>
-                  <p className="text-[12px] text-on-surface-variant mt-1">{apiKeysInfo.providerLabel}</p>
+                  <div className="flex gap-2 mt-2">
+                    {[
+                      { id: 'mx', label: '妙想 EM' },
+                      { id: 'wind', label: '万得 Wind' }
+                    ].map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => { setApiKeyProvider(p.id); setApiKeyReveal(false) }}
+                        className={`px-3 py-1 rounded-lg text-[12px] font-bold transition-all ${apiKeyProvider === p.id ? 'bg-primary text-on-primary' : 'bg-surface text-on-surface-variant border border-outline-variant/30'}`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[12px] text-on-surface-variant mt-2">{apiKeysInfo.providerLabel}</p>
                 </div>
                 <VibeButton variant="ghost" onClick={() => setApiKeyModalOpen(false)} className="p-2 rounded-full">
                   <XCircle className="w-5 h-5" />

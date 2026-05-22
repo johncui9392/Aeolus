@@ -51,6 +51,12 @@ export function loadSkills() {
         continue
       }
 
+      // vendor: mx=东方财富妙想, wind=万得（供前端分类筛选）
+      if (!manifest.vendor) {
+        manifest.vendor =
+          manifest.apiKeyProvider === 'wind' ? 'wind' : 'mx'
+      }
+
       registry.set(manifest.id, manifest)
       loaded++
       console.log(`[SkillRegistry] ✓ Loaded: ${manifest.id} (${manifest.title})`)

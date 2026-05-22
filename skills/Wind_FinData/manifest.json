@@ -1,0 +1,16 @@
+{
+  "id": "wind_findata",
+  "name": "Wind_FinData",
+  "title": "万得金融数据查询",
+  "description": "基于万得 Wind MCP，支持自然语言查询股票、基金、指数、债券、宏观等结构化金融数据。",
+  "placeholder": "例如: 贵州茅台最新价和涨跌幅",
+  "icon": "Database",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "apiKeyProvider": "wind",
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}"]
+}
