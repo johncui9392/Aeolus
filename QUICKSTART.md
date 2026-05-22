@@ -62,6 +62,12 @@ pnpm dev
 | Frontend | http://localhost:5173 |
 | Backend  | http://localhost:3001 |
 
+## Query history (SQLite)
+
+Each `/api/query` run is saved locally in `data/aeolus.db` (ignored by git). The sidebar loads `GET /api/history`; click an entry to restore results via `GET /api/history/:id`.
+
+Requires Node.js 22+ (built-in `node:sqlite`).
+
 ## Using Wind skills
 
 1. 打开前端，在技能区选择 **Wind 万得** 或 **全部**

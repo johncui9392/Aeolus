@@ -8,8 +8,7 @@ export function useAuth() {
   return {
     isAuthenticated: true,
     user: {
-      name: 'User',
-      tier: 'free'
+      name: 'User'
     },
     login: () => {},
     logout: () => {}

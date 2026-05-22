@@ -35,6 +35,7 @@ useAuth hook (扩展点)                  auth middleware (扩展点)
 - **技能插件**：`skills/` — 每个技能一个目录，含 `manifest.json` + Python 脚本
 - **临时目录**：`tmp/` — Python 输出的临时文件，读取后立即删除
 - **API Key**：`EM_API_KEY.local`（妙想）、`WIND_API_KEY.local`（万得）+ 对应环境变量
+- **查询历史**：`data/aeolus.db`（Node 内置 SQLite，本地保存，已在 `.gitignore`）
 
 ## 环境要求
 
@@ -100,6 +101,8 @@ Aeolus/
 | `POST` | `/api/query` | 执行技能查询，返回 JSON 数据 |
 | `GET` | `/api/api-keys` | 读取 API Key 列表 |
 | `POST` | `/api/api-keys` | 管理 API Key（add / setActive / delete） |
+| `GET` | `/api/history` | 查询历史列表（SQLite 本地库） |
+| `GET` | `/api/history/:id` | 单条历史详情（含 result_payload，用于还原） |
 
 ## 扩展新技能
 

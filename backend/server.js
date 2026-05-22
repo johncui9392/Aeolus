@@ -19,8 +19,14 @@ if (process.platform === 'win32') {
   process.stderr.setEncoding('utf8')
 }
 
+import { initDb } from './db/initDb.js'
 import { loadSkills, getSkills, getSkillConfig } from './services/skillRegistry.js'
 import { runPythonScript, parseOutputToJson, cleanupTempFiles, buildArgs } from './services/pythonRunner.js'
+import {
+  insertQuerySnapshot,
+  listQuerySnapshots,
+  getQuerySnapshotById
+} from './services/historyService.js'
 import { requireAuth, requireTier, trackUsage } from './middleware/auth.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -32,7 +38,8 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-// ─── 启动时加载技能插件 ───────────────────────────────────────────
+// ─── 启动时初始化本地库 + 技能插件 ─────────────────────────────────
+initDb(PROJECT_ROOT)
 loadSkills()
 
 // ─── API Key 管理 ─────────────────────────────────────────────────
@@ -229,6 +236,17 @@ app.post('/api/query', requireAuth, trackUsage, async (req, res) => {
     })
     writeSnapshotFile(snapshotDir, 'standard-result.json', standardResult)
 
+    const snapshotId = insertQuerySnapshot({
+      skillId,
+      skillName: skill.title,
+      vendor: skill.vendor || (skill.apiKeyProvider === 'wind' ? 'wind' : 'mx'),
+      selectType: selectType || '',
+      inputQuery: query,
+      success: true,
+      result: { ...result, skillId, skillName: skill.title, query, selectType: selectType || '' },
+      snapshotDir
+    })
+
     res.json({
       success: true,
       skillId,
@@ -237,6 +255,7 @@ app.post('/api/query', requireAuth, trackUsage, async (req, res) => {
       selectType: selectType || '',
       standardResult,
       snapshotDir,
+      snapshotId,
       ...result
     })
   } catch (err) {
@@ -265,11 +284,24 @@ app.post('/api/query', requireAuth, trackUsage, async (req, res) => {
       error: err.message
     })
     writeSnapshotFile(snapshotDir, 'standard-result.json', standardResult)
+
+    const snapshotId = insertQuerySnapshot({
+      skillId,
+      skillName: skill.title,
+      vendor: skill.vendor || (skill.apiKeyProvider === 'wind' ? 'wind' : 'mx'),
+      selectType: selectType || '',
+      inputQuery: query,
+      success: false,
+      errorMessage: err.message,
+      snapshotDir
+    })
+
     res.status(500).json({
       success: false,
       error: err.message,
       snapshotDir,
-      standardResult
+      standardResult,
+      snapshotId
     })
   } finally {
     // 无论成功失败，清理临时文件，保持服务器磁盘干净
@@ -342,6 +374,33 @@ app.post('/api/api-keys', requireAuth, (req, res) => {
   }
 
   res.status(400).json({ success: false, error: '未知 action' })
+})
+
+/** 查询历史列表（不含完整 result_payload） */
+app.get('/api/history', requireAuth, (req, res) => {
+  try {
+    const limit = req.query.limit
+    const offset = req.query.offset
+    const items = listQuerySnapshots({ limit, offset })
+    res.json({ success: true, items })
+  } catch (e) {
+    console.error('[/api/history]', e.message)
+    res.status(500).json({ success: false, error: e.message || 'list failed' })
+  }
+})
+
+/** 单条历史详情（含 result_payload，用于还原结果区） */
+app.get('/api/history/:id', requireAuth, (req, res) => {
+  try {
+    const row = getQuerySnapshotById(req.params.id)
+    if (!row) {
+      return res.status(404).json({ success: false, error: '记录不存在' })
+    }
+    res.json({ success: true, snapshot: row })
+  } catch (e) {
+    console.error('[/api/history/:id]', e.message)
+    res.status(500).json({ success: false, error: e.message || 'load failed' })
+  }
 })
 
 // ─── 启动 ─────────────────────────────────────────────────────────

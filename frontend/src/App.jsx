@@ -5,7 +5,7 @@ import axios from 'axios'
 import ReactMarkdown from 'react-markdown'
 import {
   Database, Search, TrendingUp, Target, Loader2, XCircle,
-  FileText, Download, Terminal, MessageSquarePlus, ChevronRight,
+  FileText, Download, MessageSquarePlus, ChevronRight,
   ChevronDown, Puzzle, Store
 } from 'lucide-react'
 import { useAuth } from './hooks/useAuth.js'
@@ -13,10 +13,9 @@ import { useAuth } from './hooks/useAuth.js'
 // ─── 配置 ───────────────────────────────────────────────────────────────────
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
-const HISTORY_KEY = 'aeolus_query_history'
 const THEME_KEY = 'aeolus_theme'
 const SKILL_VENDOR_KEY = 'aeolus_skill_vendor'
-const MAX_HISTORY = 20
+const HISTORY_LIST_LIMIT = 50
 
 /** 技能来源分类（插件商店顶部 Tag 筛选） */
 const SKILL_VENDOR_TAGS = [
@@ -287,6 +286,21 @@ function tableObjectToRows(sectionTable = {}, nameField = '公司名称') {
     })
 }
 
+function hasRenderableSnapshotPayload(payload) {
+  if (!payload || typeof payload !== 'object') return false
+  const hasSheets = Array.isArray(payload.sheets) && payload.sheets.length > 0
+  const hasText = [payload.description, payload.content, payload.rawOutput].some(
+    (v) => typeof v === 'string' && v.trim().length > 0
+  )
+  return hasSheets || hasText
+}
+
+function deriveSheetsFallback(payload, rawOutput) {
+  if (Array.isArray(payload?.sheets) && payload.sheets.length > 0) return payload.sheets
+  const parsed = parseComparableCompanySheets(rawOutput || '')
+  return parsed.sheets || []
+}
+
 function parseComparableCompanySheets(rawOutput) {
   const text = String(rawOutput || '').trim()
   if (!text.startsWith('{')) return { sheets: [], note: '' }
@@ -331,6 +345,7 @@ export default function App() {
     }
   })
   const [selectedSkill, setSelectedSkill] = useState(null)
+  const [skillsPanelOpen, setSkillsPanelOpen] = useState(false)
 
   const filteredSkills = useMemo(() => {
     if (skillVendorFilter === 'all') return skills
@@ -371,14 +386,10 @@ export default function App() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false)
   const [ribbonPieces, setRibbonPieces] = useState([])
-  const [historyItems, setHistoryItems] = useState(() => {
-    try {
-      const raw = localStorage.getItem(HISTORY_KEY)
-      return raw ? normalizeHistoryByCreatedAt(JSON.parse(raw)) : []
-    } catch {
-      return []
-    }
-  })
+  const [historyItems, setHistoryItems] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyRestoreLoading, setHistoryRestoreLoading] = useState(false)
+  const [activeSnapshotId, setActiveSnapshotId] = useState(null)
 
   // ── API Key 状态（mx=妙想 / wind=万得）
   const [apiKeyProvider, setApiKeyProvider] = useState('mx')
@@ -429,15 +440,57 @@ export default function App() {
     setSkillVendorFilter(vendorId)
   }
 
-  // ── 历史记录持久化
-  const saveHistory = useCallback((items) => {
-    setHistoryItems(items)
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(items)) } catch { /* ignore */ }
+  const fetchHistory = useCallback(async () => {
+    setHistoryLoading(true)
+    try {
+      const res = await axios.get(`${API_BASE}/api/history`, {
+        params: { limit: HISTORY_LIST_LIMIT }
+      })
+      if (res.data?.success) {
+        const items = (res.data.items || []).map((row) => ({
+          id: row.id,
+          createdAt: row.created_at,
+          skillId: row.skill_id,
+          skillName: row.skill_name,
+          vendor: row.vendor,
+          query: row.input_query,
+          selectType: row.select_type || '',
+          success: !!row.success,
+          errorMessage: row.error_message || '',
+          hasPayload: !!row.has_payload
+        }))
+        setHistoryItems(normalizeHistoryByCreatedAt(items))
+      }
+    } catch {
+      // 后端未启动时保持空列表
+    } finally {
+      setHistoryLoading(false)
+    }
   }, [])
 
-  const pushHistory = useCallback((entry) => {
-    saveHistory([...historyItems, entry].slice(-MAX_HISTORY))
-  }, [historyItems, saveHistory])
+  useEffect(() => {
+    fetchHistory()
+  }, [fetchHistory])
+
+  const applyQueryResultToView = useCallback((data) => {
+    const resolved = resolveSkillDisplay(data)
+    const comparableParsed = parseComparableCompanySheets(data.rawOutput || '')
+    const displaySheets = (data.sheets && data.sheets.length) ? data.sheets : comparableParsed.sheets
+    const descriptionText = comparableParsed.note
+      ? [resolved.description, `> ${comparableParsed.note}`].filter(Boolean).join('\n\n')
+      : resolved.description
+    const displayFileType = displaySheets.length ? (data.fileType === 'csv' ? 'csv' : 'xlsx') : resolved.fileType
+
+    setQueryResult(data)
+    setSheetData(displaySheets)
+    setActiveSheetName(displaySheets?.[0]?.name || '')
+    setFileType(displayFileType)
+    setFileName(data.fileName || 'data')
+    setDescription(descriptionText)
+    setRawOutput(data.rawOutput || '')
+    setPreviewView('table')
+    setError(null)
+  }, [])
 
   const formatTime = (iso) => {
     if (!iso) return ''
@@ -452,6 +505,7 @@ export default function App() {
   // ── 新会话
   const handleNewSession = () => {
     setQuery('')
+    setActiveSnapshotId(null)
     resetResultState()
   }
 
@@ -472,56 +526,86 @@ export default function App() {
         selectType: selectedSkill.needsSelectType ? selectType : undefined
       })
       const data = res.data
-      const resolved = resolveSkillDisplay(data)
-      const comparableParsed = parseComparableCompanySheets(data.rawOutput || '')
-      const displaySheets = (data.sheets && data.sheets.length) ? data.sheets : comparableParsed.sheets
-      const descriptionText = comparableParsed.note
-        ? [resolved.description, `> ${comparableParsed.note}`].filter(Boolean).join('\n\n')
-        : resolved.description
-      const displayFileType = displaySheets.length ? (data.fileType === 'csv' ? 'csv' : 'xlsx') : resolved.fileType
-
-      // 直接消费 JSON 结果，无需再次请求文件
-      setQueryResult(data)
-      setSheetData(displaySheets)
-      setActiveSheetName(displaySheets?.[0]?.name || '')
-      setFileType(displayFileType)
-      setFileName(data.fileName || 'data')
-      setDescription(descriptionText)
-      setRawOutput(data.rawOutput || '')
-      setPreviewView('table')
-
-      pushHistory({
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        createdAt: new Date().toISOString(),
-        skillId: selectedSkill.id,
-        skillName: selectedSkill.title,
-        query: effectiveQuery,
-        selectType: selectedSkill.needsSelectType ? selectType : '',
-        success: true
-      })
+      applyQueryResultToView(data)
+      if (data.snapshotId) setActiveSnapshotId(data.snapshotId)
+      await fetchHistory()
     } catch (err) {
       const msg = err.response?.data?.error || err.message || '查询失败'
       setError(msg)
-      pushHistory({
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        createdAt: new Date().toISOString(),
-        skillId: selectedSkill?.id,
-        skillName: selectedSkill?.title,
-        query: effectiveQuery,
-        success: false
-      })
+      if (err.response?.data?.snapshotId) setActiveSnapshotId(err.response.data.snapshotId)
+      await fetchHistory()
     } finally {
       setLoading(false)
     }
   }
 
-  // ── 回填历史
-  const rerunItem = (item) => {
-    const skill = skills.find((s) => s.id === item.skillId)
-    if (skill) setSelectedSkill(skill)
-    setQuery(item.query || '')
-    setSelectType(item.selectType || 'A股')
-    resetResultState()
+  /** 从 SQLite 历史详情还原结果区（参考 Commercial openCloudSnapshot） */
+  const openHistorySnapshot = async (snapshotId) => {
+    if (!snapshotId) return
+    setHistoryRestoreLoading(true)
+    setError(null)
+    try {
+      const res = await axios.get(`${API_BASE}/api/history/${encodeURIComponent(snapshotId)}`)
+      if (!res.data?.success || !res.data.snapshot) {
+        throw new Error(res.data?.error || '无法加载历史记录')
+      }
+      const snap = res.data.snapshot
+      setActiveSnapshotId(snap.id)
+
+      const skill = skills.find((s) => s.id === snap.skill_id)
+      if (skill) {
+        setSelectedSkill(skill)
+        if (skill.vendor === 'wind') setSkillVendorFilter('wind')
+        else if (skill.vendor === 'mx') setSkillVendorFilter('mx')
+      }
+      setQuery(snap.input_query || '')
+      setSelectType(snap.select_type || 'A股')
+
+      if (snap.success && snap.result_payload && typeof snap.result_payload === 'object') {
+        const payload = {
+          ...snap.result_payload,
+          skillId: snap.skill_id,
+          skillName: snap.skill_name,
+          query: snap.input_query
+        }
+        const restoredSheets = (Array.isArray(payload.sheets) && payload.sheets.length > 0)
+          ? payload.sheets
+          : deriveSheetsFallback(payload, payload.rawOutput)
+        const renderable = hasRenderableSnapshotPayload(payload) || restoredSheets.length > 0
+        setError(renderable ? null : '该历史记录无法完整还原展示，仅保留问句')
+        setQueryResult(payload)
+        setSheetData(restoredSheets)
+        setActiveSheetName(restoredSheets?.[0]?.name || '')
+        setFileType(payload.fileType || (restoredSheets.length > 0 ? 'xlsx' : 'text'))
+        setFileName(payload.fileName || 'data')
+        const resolved = resolveSkillDisplay(payload)
+        const comparableParsed = parseComparableCompanySheets(payload.rawOutput || '')
+        const descriptionText = comparableParsed.note
+          ? [resolved.description, `> ${comparableParsed.note}`].filter(Boolean).join('\n\n')
+          : resolved.description
+        setDescription(descriptionText)
+        setRawOutput(payload.rawOutput || '')
+        setPreviewView('table')
+      } else if (!snap.success) {
+        setQueryResult(null)
+        setSheetData([])
+        setActiveSheetName('')
+        setDescription('')
+        setRawOutput('')
+        setFileType('text')
+        setFileName('')
+        setPreviewView('table')
+        setError(snap.error_message || '查询失败')
+      } else {
+        resetResultState()
+        setQuery(snap.input_query || '')
+      }
+    } catch (e) {
+      setError(e.response?.data?.error || e.message || '加载历史失败')
+      setActiveSnapshotId(null)
+    } finally {
+      setHistoryRestoreLoading(false)
+    }
   }
 
   // ── 前端导出
@@ -629,28 +713,45 @@ export default function App() {
 
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar -mx-2 px-2">
             <div className="space-y-1.5 pb-4">
-              {historyItems.length === 0 ? (
+              {historyLoading ? (
+                <div className="flex items-center justify-center gap-2 py-6 text-on-surface-variant">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span className="text-[12px]">加载历史…</span>
+                </div>
+              ) : historyItems.length === 0 ? (
                 <p className="text-[12px] text-on-surface-variant px-3 py-2 text-center">暂无历史记录</p>
               ) : (
-                historyItems.map((item) => (
-                  <motion.button
-                    key={item.id}
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => rerunItem(item)}
-                    className="w-full text-left px-3 py-2.5 rounded-xl border border-transparent hover:bg-surface-container-high hover:border-outline-variant/30 transition-colors"
-                    title={item.query}
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="text-xs font-semibold text-on-surface truncate">{item.skillName}</span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[10px] text-on-surface-variant">{formatTime(item.createdAt)}</span>
-                        <div className={`w-1.5 h-1.5 rounded-full ${item.success ? 'bg-primary' : 'bg-error'}`} />
+                [...historyItems].reverse().map((item) => {
+                  const isActive = activeSnapshotId === item.id
+                  const vendorMeta = vendorTagMeta(item.vendor === 'wind' ? 'wind' : 'mx')
+                  return (
+                    <motion.button
+                      key={item.id}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.98 }}
+                      disabled={historyRestoreLoading}
+                      onClick={() => openHistorySnapshot(item.id)}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors disabled:opacity-60 ${
+                        isActive
+                          ? 'bg-primary-container/20 border-primary/50'
+                          : 'border-transparent hover:bg-surface-container-high hover:border-outline-variant/30'
+                      }`}
+                      title={item.query}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-xs font-semibold text-on-surface truncate">{item.skillName}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className={`text-[9px] font-bold px-1 py-0.5 rounded border ${vendorMeta.color}`}>
+                            {vendorMeta.shortLabel}
+                          </span>
+                          <span className="text-[10px] text-on-surface-variant">{formatTime(item.createdAt)}</span>
+                          <div className={`w-1.5 h-1.5 rounded-full ${item.success ? 'bg-primary' : 'bg-error'}`} />
+                        </div>
                       </div>
-                    </div>
-                    <p className="text-[11px] text-on-surface-variant truncate leading-tight">{item.query}</p>
-                  </motion.button>
-                ))
+                      <p className="text-[11px] text-on-surface-variant truncate leading-tight">{item.query}</p>
+                    </motion.button>
+                  )
+                })
               )}
             </div>
           </div>
@@ -699,7 +800,6 @@ export default function App() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-on-surface truncate">{user.name}</p>
-              <p className="text-[11px] text-on-surface-variant capitalize">{user.tier} plan</p>
             </div>
             <motion.div animate={{ rotate: userMenuOpen ? 180 : 0 }}>
               <ChevronDown className="w-4 h-4 text-on-surface-variant" />
@@ -710,27 +810,49 @@ export default function App() {
 
       {/* ── 主内容区 ── */}
       <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-background">
-        <div className="flex-1 flex flex-col min-h-0 p-6 gap-6 overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 p-4 gap-3 overflow-hidden max-w-6xl mx-auto w-full">
 
-          {/* 查询输入卡片 */}
-          <div className="shrink-0 max-w-6xl mx-auto w-full">
-            <div className="bg-surface-container-low p-6 rounded-3xl border border-outline-variant/30 shadow-[0_4px_20px_rgb(0,0,0,0.15)]">
+          {/* 顶部工具条：默认收起技能列表，问句单行；结果区占满剩余高度 */}
+          <div className="shrink-0 w-full">
+            <div className="bg-surface-container-low px-3 py-2.5 rounded-2xl border border-outline-variant/30 shadow-sm flex flex-col gap-2">
 
-              {/* 技能插件商店选择器 */}
               {skillsLoading ? (
-                <div className="flex items-center gap-3 mb-6 text-on-surface-variant">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">正在加载插件商店...</span>
+                <div className="flex items-center gap-2 text-on-surface-variant text-xs py-1">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>加载技能…</span>
                 </div>
               ) : skills.length === 0 ? (
-                <div className="flex items-center gap-3 mb-6 p-4 rounded-2xl bg-error-container/30 text-on-error-container">
-                  <Store className="w-5 h-5 shrink-0" />
-                  <span className="text-sm font-medium">后端未连接，插件商店暂不可用。请启动 backend/ 服务。</span>
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-error-container/30 text-on-error-container text-xs">
+                  <Store className="w-4 h-4 shrink-0" />
+                  <span>后端未连接，请启动 backend</span>
                 </div>
               ) : (
                 <>
-                  <div className="flex flex-wrap items-center gap-2 mb-4">
-                    <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mr-1">技能来源</span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSkillsPanelOpen((v) => !v)}
+                      className="inline-flex items-center gap-1.5 max-w-[min(100%,280px)] px-2.5 py-1.5 rounded-xl border border-outline-variant/40 bg-surface hover:bg-surface-variant/40 text-left transition-colors"
+                    >
+                      {selectedSkill ? (
+                        <>
+                          {(() => {
+                            const Icon = ICON_MAP[selectedSkill.icon] || Puzzle
+                            return <Icon className="w-4 h-4 shrink-0 text-primary" />
+                          })()}
+                          <span className="text-xs font-semibold text-on-surface truncate">{selectedSkill.title}</span>
+                          <span className={`text-[9px] font-bold px-1 py-0.5 rounded border shrink-0 ${vendorTagMeta(getSkillVendor(selectedSkill)).color}`}>
+                            {vendorTagMeta(getSkillVendor(selectedSkill)).shortLabel}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-on-surface-variant">选择技能</span>
+                      )}
+                      <motion.div animate={{ rotate: skillsPanelOpen ? 180 : 0 }} className="shrink-0 ml-auto">
+                        <ChevronDown className="w-4 h-4 text-on-surface-variant" />
+                      </motion.div>
+                    </button>
+
                     {SKILL_VENDOR_TAGS.map((tag) => {
                       const isTagActive = skillVendorFilter === tag.id
                       const count = tag.id === 'all'
@@ -740,82 +862,87 @@ export default function App() {
                         <button
                           key={tag.id}
                           type="button"
-                          onClick={() => handleSkillVendorChange(tag.id)}
-                          className={`px-3.5 py-1.5 rounded-full text-[12px] font-bold border transition-all ${
+                          onClick={() => {
+                            handleSkillVendorChange(tag.id)
+                            setSkillsPanelOpen(true)
+                          }}
+                          className={`px-2 py-1 rounded-lg text-[11px] font-bold border transition-all ${
                             isTagActive
-                              ? 'bg-primary text-on-primary border-primary shadow-sm'
-                              : 'bg-surface text-on-surface-variant border-outline-variant/40 hover:border-primary/50 hover:text-on-surface'
+                              ? 'bg-primary text-on-primary border-primary'
+                              : 'bg-surface/80 text-on-surface-variant border-outline-variant/30 hover:text-on-surface'
                           }`}
                         >
                           {tag.label}
-                          <span className={`ml-1.5 tabular-nums ${isTagActive ? 'opacity-90' : 'opacity-60'}`}>
-                            {count}
-                          </span>
+                          <span className="ml-1 opacity-70">{count}</span>
                         </button>
                       )
                     })}
                   </div>
 
-                  {filteredSkills.length === 0 ? (
-                    <div className="mb-6 p-4 rounded-2xl bg-surface-container text-on-surface-variant text-sm">
-                      该分类下暂无技能
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-2.5 mb-6">
-                      {filteredSkills.map((skill) => {
-                        const Icon = ICON_MAP[skill.icon] || Puzzle
-                        const isActive = selectedSkill?.id === skill.id
-                        const vendor = getSkillVendor(skill)
-                        const vendorMeta = vendorTagMeta(vendor)
-                        return (
-                          <VibeButton
-                            key={skill.id}
-                            variant={isActive ? 'primary' : 'ghost'}
-                            onClick={() => {
-                              setSelectedSkill(skill)
-                              setQuery('')
-                              resetResultState()
-                            }}
-                            className={`px-4 py-3 rounded-2xl ${!isActive ? 'bg-surface hover:bg-surface-variant/50 border border-outline-variant/30' : ''}`}
-                          >
-                            <Icon className="w-5 h-5 shrink-0" />
-                            <div className="text-left ml-1.5 min-w-0">
-                              <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                <span className="text-[10px] font-mono leading-none opacity-80 uppercase tracking-wider truncate max-w-[120px]">
-                                  {skill.name}
-                                </span>
-                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border leading-none shrink-0 ${vendorMeta.color}`}>
-                                  {vendorMeta.shortLabel}
-                                </span>
-                              </div>
-                              <div className="text-sm font-semibold leading-snug">{skill.title}</div>
+                  <AnimatePresence initial={false}>
+                    {skillsPanelOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="max-h-[min(200px,28vh)] overflow-y-auto custom-scrollbar rounded-xl border border-outline-variant/20 bg-surface/30 p-2">
+                          {filteredSkills.length === 0 ? (
+                            <p className="text-xs text-on-surface-variant py-2 px-1">该分类下暂无技能</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5">
+                              {filteredSkills.map((skill) => {
+                                const Icon = ICON_MAP[skill.icon] || Puzzle
+                                const isActive = selectedSkill?.id === skill.id
+                                const vendorMeta = vendorTagMeta(getSkillVendor(skill))
+                                return (
+                                  <button
+                                    key={skill.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedSkill(skill)
+                                      setQuery('')
+                                      resetResultState()
+                                      setSkillsPanelOpen(false)
+                                    }}
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-left transition-colors ${
+                                      isActive
+                                        ? 'bg-primary text-on-primary border-primary'
+                                        : 'bg-surface border-outline-variant/30 hover:border-primary/40 text-on-surface'
+                                    }`}
+                                  >
+                                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="text-xs font-semibold leading-tight">{skill.title}</span>
+                                    <span className={`text-[8px] font-bold px-1 rounded border leading-none ${isActive ? 'border-on-primary/30 opacity-90' : vendorMeta.color}`}>
+                                      {vendorMeta.shortLabel}
+                                    </span>
+                                  </button>
+                                )
+                              })}
                             </div>
-                          </VibeButton>
-                        )
-                      })}
-                    </div>
-                  )}
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </>
               )}
 
-              <label className="flex items-center text-sm font-bold text-primary mb-3 uppercase tracking-wider">
-                <Terminal className="w-4 h-4 mr-2" />
-                Query Input
-              </label>
-
-              <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4">
+              <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2 shrink-0">
                 <input
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={selectedSkill?.placeholder || '请输入查询内容'}
-                  className="flex-1 bg-surface border border-outline-variant rounded-2xl px-5 py-4 text-base text-on-surface placeholder-on-surface-variant focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-sm"
+                  placeholder={selectedSkill?.placeholder?.replace(/^例如[:：]\s*/, '') || '输入查询内容'}
+                  className="flex-1 min-w-[160px] bg-surface border border-outline-variant rounded-xl px-3 py-2 text-sm text-on-surface placeholder-on-surface-variant focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/25"
                 />
                 {selectedSkill?.needsSelectType && (
                   <select
                     value={selectType}
                     onChange={(e) => setSelectType(e.target.value)}
-                    className="bg-surface border border-outline-variant rounded-2xl px-5 py-4 text-base text-on-surface min-w-[140px] focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-sm appearance-none cursor-pointer"
+                    className="bg-surface border border-outline-variant rounded-xl px-3 py-2 text-sm text-on-surface min-w-[100px] focus:outline-none focus:border-primary appearance-none cursor-pointer"
                   >
                     {(selectedSkill.selectOptions || []).map((opt) => (
                       <option key={opt} value={opt} className="bg-surface-container">{opt}</option>
@@ -826,44 +953,44 @@ export default function App() {
                   type="submit"
                   variant="primary"
                   disabled={loading || !selectedSkill}
-                  className="px-8 py-4 rounded-2xl text-base shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="px-4 py-2 rounded-xl text-sm shadow-sm disabled:opacity-60 shrink-0"
                 >
                   {loading
-                    ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}><Loader2 className="w-5 h-5" /></motion.div>
-                    : <Search className="w-5 h-5" />}
-                  <span className="font-bold tracking-wide">{loading ? 'Processing' : 'Execute'}</span>
+                    ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}><Loader2 className="w-4 h-4" /></motion.div>
+                    : <Search className="w-4 h-4" />}
+                  <span className="font-bold">{loading ? '…' : '执行'}</span>
                 </VibeButton>
               </form>
 
               <AnimatePresence>
                 {error && (
                   <motion.div
-                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                    animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
-                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                    className="p-4 bg-error-container text-on-error-container rounded-2xl flex items-center gap-3 overflow-hidden"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="px-2.5 py-2 bg-error-container text-on-error-container rounded-xl flex items-center gap-2 text-xs overflow-hidden"
                   >
-                    <XCircle className="w-5 h-5 shrink-0" />
-                    <span className="text-sm font-medium">{error}</span>
+                    <XCircle className="w-4 h-4 shrink-0" />
+                    <span className="font-medium line-clamp-2">{error}</span>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
           </div>
 
-          {/* 结果展示卡片 */}
-          <div className="flex-1 min-h-0 max-w-6xl mx-auto w-full">
-            <div className="h-full bg-surface-container-low rounded-3xl border border-outline-variant/30 overflow-hidden flex flex-col shadow-[0_4px_20px_rgb(0,0,0,0.15)]">
+          {/* 结果展示（主区域） */}
+          <div className="flex-1 min-h-0 w-full">
+            <div className="h-full min-h-[200px] bg-surface-container-low rounded-2xl border border-outline-variant/30 overflow-hidden flex flex-col shadow-sm">
 
               {/* 结果区头部 */}
-              <div className="px-6 py-4 border-b border-outline-variant/30 flex flex-col gap-3 bg-surface-container shrink-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-secondary-container text-on-secondary-container rounded-2xl flex items-center justify-center shadow-sm">
-                      <FileText className="w-5 h-5" />
+              <div className="px-4 py-2.5 border-b border-outline-variant/30 flex flex-col gap-2 bg-surface-container shrink-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 bg-secondary-container text-on-secondary-container rounded-xl flex items-center justify-center shrink-0">
+                      <FileText className="w-4 h-4" />
                     </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-on-surface tracking-wide">
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-on-surface truncate">
                         {queryResult ? `${queryResult.skillName} — ${queryResult.query}` : '查询结果'}
                       </h3>
                       {queryResult?.fileName && (
