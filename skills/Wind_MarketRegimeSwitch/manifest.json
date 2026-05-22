@@ -1,0 +1,16 @@
+{
+  "id": "wind_market_regime_switch",
+  "name": "Wind_MarketRegimeSwitch",
+  "title": "市场状态切换",
+  "description": "判断市场处于进攻、防守、震荡或切换阶段，解释风格、广度、情绪与宏观匹配关系及仓位含义。基于万得 Alice。",
+  "placeholder": "例如: 当前A股市场处于什么阶段，是否适合进攻",
+  "icon": "Activity",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "apiKeyProvider": "wind",
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}"]
+}

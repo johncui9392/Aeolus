@@ -1,0 +1,16 @@
+{
+  "id": "wind_equity_investment_thesis",
+  "name": "Wind_EquityInvestmentThesis",
+  "title": "个股投资逻辑研究",
+  "description": "输入股票名称或代码，生成接近卖方研究员风格的深度个股分析：商业模式、投资逻辑、预期差与风险。基于万得 Alice。",
+  "placeholder": "例如: 贵州茅台 600519 投资逻辑",
+  "icon": "FileSearch",
+  "category": "research",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "apiKeyProvider": "wind",
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}"]
+}

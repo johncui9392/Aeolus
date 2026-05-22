@@ -1,0 +1,16 @@
+{
+  "id": "wind_a_share_primary_theme",
+  "name": "Wind_ASharePrimaryTheme",
+  "title": "A股主线识别",
+  "description": "识别当日市场主线、次级热点、龙头中军与情绪周期，给出明日盯盘重点。基于万得 Alice。",
+  "placeholder": "例如: 今日市场主线与情绪位置（可补充你关注的板块）",
+  "icon": "GitBranch",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "apiKeyProvider": "wind",
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}"]
+}

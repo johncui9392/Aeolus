@@ -1,3 +1,9 @@
 httpx
 pandas
 openpyxl
+requests
+beautifulsoup4
+lxml
+numpy
+yfinance
+finvizfinance

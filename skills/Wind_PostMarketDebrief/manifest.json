@@ -1,0 +1,16 @@
+{
+  "id": "wind_post_market_debrief",
+  "name": "Wind_PostMarketDebrief",
+  "title": "盘后复盘",
+  "description": "收盘后快速复盘全天市场：主线轮动、情绪资金、核心个股与次日观察要点。基于万得 Alice，报告篇幅较长。",
+  "placeholder": "例如: 今日A股盘后复盘，关注科技与新能源板块",
+  "icon": "Sunset",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "apiKeyProvider": "wind",
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}"]
+}

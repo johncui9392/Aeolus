@@ -36,6 +36,9 @@ export function loadSkills() {
 
   let loaded = 0
   for (const folder of folders) {
+    // 运行时依赖目录，非对外技能插件
+    if (folder.startsWith('_') || folder === 'wind-alice-runtime') continue
+
     const manifestPath = path.join(SKILLS_ROOT, folder, 'manifest.json')
     if (!fs.existsSync(manifestPath)) continue
 

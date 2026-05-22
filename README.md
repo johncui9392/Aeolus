@@ -12,7 +12,7 @@ Aeolus 是一个**金融 Skill 聚合平台**，提供统一 Web 界面调用多
 ## 功能特性
 
 - **插件商店**：技能以插件形式注册（`manifest.json`），新增技能无需改代码
-- **多数据源**：东方财富妙想技能 + **万得 Wind** 金融数据（`Wind_FinData`）
+- **多数据源**：东方财富妙想技能 + **万得 Wind**（查数、Alice 复盘/个股/主线/市场状态、主题检测等 6 个插件）
 - **多技能支持**：`MX_FinData`、`MX_FinSearch`、`MX_MacroData`、`MX_StockPick` 等
 - **技能来源筛选**：界面按 **东方财富 / Wind 万得** Tag 切换技能列表
 - **纯 JSON 数据流**：结果直接返回结构化 JSON，不写本地文件，支持前端直接导出 Excel/CSV
@@ -79,7 +79,13 @@ Aeolus/
 │       └── pythonRunner.js    # Python 执行 + JSON 解析 + 临时文件清理
 ├── skills/                    # 技能插件目录
 │   ├── MX_FinData/            # 东方财富妙想
-│   └── Wind_FinData/          # 万得 Wind（含 cli.mjs + get_data.py）
+│   ├── Wind_FinData/          # 万得 MCP 查数
+│   ├── Wind_PostMarketDebrief/  # 盘后复盘（Alice）
+│   ├── Wind_EquityInvestmentThesis/
+│   ├── Wind_ASharePrimaryTheme/
+│   ├── Wind_MarketRegimeSwitch/
+│   ├── Wind_ThemeDetector/    # 主题检测（Python）
+│   └── wind-alice-runtime/    # Alice CLI（内部运行时）
 ├── docs/
 │   └── WIND_DATA_SOURCE.md    # 万得 Key 与使用说明
 ├── python/                    # 共享 Python 虚拟环境

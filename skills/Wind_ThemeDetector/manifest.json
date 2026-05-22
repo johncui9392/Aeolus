@@ -1,0 +1,16 @@
+{
+  "id": "wind_theme_detector",
+  "name": "Wind_ThemeDetector",
+  "title": "全球市场主题检测",
+  "description": "跨行业检测当前热门/冷门市场主题，含热度、生命周期与多空方向评分（FINVIZ/ETF 数据，可选 API Key）。",
+  "placeholder": "可选备注，如: 关注 AI 与能源主题；留空则全市场扫描",
+  "icon": "Layers",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "apiKeyProvider": "wind",
+  "script": "get_data.py",
+  "argsTemplate": ["--query", "{query}"]
+}
