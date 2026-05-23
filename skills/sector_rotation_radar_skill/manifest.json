@@ -1,0 +1,20 @@
+{
+  "id": "wind_sector_rotation",
+  "name": "sector_rotation_radar_skill",
+  "title": "板块轮动雷达",
+  "description": "板块轮动与风格迁移。Agent 工作流 Skill（SKILL.md 驱动），Web 端返回使用指引。",
+  "placeholder": "例如: 板块轮动雷达相关分析",
+  "icon": "Puzzle",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": [
+    "--query",
+    "{query}"
+  ],
+  "executionMode": "agent",
+  "marketCategory": "金融技能"
+}

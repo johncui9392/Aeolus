@@ -1,0 +1,20 @@
+{
+  "id": "wind_fund_screening",
+  "name": "Wind_FundScreening",
+  "title": "基金筛选与投资建议",
+  "description": "基金筛选与投资建议。基于万得 Alice 云端 Skill，报告篇幅较长。",
+  "placeholder": "例如: 稳健型投资者基金推荐",
+  "icon": "FileText",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "apiKeyProvider": "wind",
+  "script": "get_data.py",
+  "argsTemplate": [
+    "--query",
+    "{query}"
+  ],
+  "marketCategory": "万得官方"
+}

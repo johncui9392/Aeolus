@@ -1,0 +1,20 @@
+{
+  "id": "wind_peer_comparison",
+  "name": "peer_comparison_decision_skill",
+  "title": "同业比选",
+  "description": "同业候选公司比选。Agent 工作流 Skill（SKILL.md 驱动），Web 端返回使用指引。",
+  "placeholder": "例如: 同业比选相关分析",
+  "icon": "Puzzle",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": [
+    "--query",
+    "{query}"
+  ],
+  "executionMode": "agent",
+  "marketCategory": "金融技能"
+}

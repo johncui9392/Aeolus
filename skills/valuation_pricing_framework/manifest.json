@@ -1,0 +1,20 @@
+{
+  "id": "wind_valuation_framework",
+  "name": "valuation_pricing_framework",
+  "title": "估值与定价框架",
+  "description": "公司估值与定价框架分析。Agent 工作流 Skill（SKILL.md 驱动），Web 端返回使用指引。",
+  "placeholder": "例如: 估值与定价框架相关分析",
+  "icon": "Puzzle",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": [
+    "--query",
+    "{query}"
+  ],
+  "executionMode": "agent",
+  "marketCategory": "金融技能"
+}

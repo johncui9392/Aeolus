@@ -1,0 +1,12 @@
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "_lib"))
+from agent_skill_stub import main_entry
+
+if __name__ == "__main__":
+    main_entry(
+        skill_label="业务模式拆解",
+        output_subdir="business_model_decoder_skill",
+        skill_md_name="business_model_decoder_skill",
+    )

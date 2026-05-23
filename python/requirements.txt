@@ -7,3 +7,4 @@ lxml
 numpy
 yfinance
 finvizfinance
+tushare

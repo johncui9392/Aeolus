@@ -1,0 +1,20 @@
+{
+  "id": "tushare_findata",
+  "name": "Tushare_FinData",
+  "title": "Tushare 金融数据",
+  "description": "官方 Tushare Pro 数据查询：A股行情、财务、宏观等。需 TUSHARE_TOKEN。",
+  "placeholder": "例如: 贵州茅台最近20日收盘价",
+  "icon": "Database",
+  "category": "market",
+  "vendor": "tushare",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "apiKeyProvider": "tushare",
+  "script": "get_data.py",
+  "argsTemplate": [
+    "--query",
+    "{query}"
+  ],
+  "marketCategory": "数据获取"
+}

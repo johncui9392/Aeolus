@@ -1,0 +1,20 @@
+{
+  "id": "wind_moat_review",
+  "name": "moat_strength_review_skill",
+  "title": "护城河评估",
+  "description": "公司护城河强度评估。Agent 工作流 Skill（SKILL.md 驱动），Web 端返回使用指引。",
+  "placeholder": "例如: 护城河评估相关分析",
+  "icon": "Puzzle",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": [
+    "--query",
+    "{query}"
+  ],
+  "executionMode": "agent",
+  "marketCategory": "金融技能"
+}

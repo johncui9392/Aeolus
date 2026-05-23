@@ -21,11 +21,13 @@ const HISTORY_LIST_LIMIT = 50
 const SKILL_VENDOR_TAGS = [
   { id: 'all', label: '全部' },
   { id: 'mx', label: '东方财富', shortLabel: '妙想', color: 'bg-amber-500/15 text-amber-200 border-amber-400/40' },
-  { id: 'wind', label: 'Wind 万得', shortLabel: '万得', color: 'bg-sky-500/15 text-sky-200 border-sky-400/40' }
+  { id: 'wind', label: 'Wind 万得', shortLabel: '万得', color: 'bg-sky-500/15 text-sky-200 border-sky-400/40' },
+  { id: 'tushare', label: 'Tushare', shortLabel: 'Tushare', color: 'bg-emerald-500/15 text-emerald-200 border-emerald-400/40' }
 ]
 
 function getSkillVendor(skill) {
   if (!skill) return 'mx'
+  if (skill.vendor === 'tushare') return 'tushare'
   return skill.vendor === 'wind' ? 'wind' : 'mx'
 }
 
@@ -488,7 +490,9 @@ export default function App() {
     setFileName(data.fileName || 'data')
     setDescription(descriptionText)
     setRawOutput(data.rawOutput || '')
-    setPreviewView('table')
+    const hasSheets = displaySheets.length > 0
+    const preview = data.previewMode || (hasSheets ? 'table' : 'text')
+    setPreviewView(hasSheets && preview !== 'text' ? 'table' : 'desc')
     setError(null)
   }, [])
 
@@ -555,7 +559,8 @@ export default function App() {
       const skill = skills.find((s) => s.id === snap.skill_id)
       if (skill) {
         setSelectedSkill(skill)
-        if (skill.vendor === 'wind') setSkillVendorFilter('wind')
+        if (skill.vendor === 'tushare') setSkillVendorFilter('tushare')
+        else if (skill.vendor === 'wind') setSkillVendorFilter('wind')
         else if (skill.vendor === 'mx') setSkillVendorFilter('mx')
       }
       setQuery(snap.input_query || '')
@@ -585,7 +590,9 @@ export default function App() {
           : resolved.description
         setDescription(descriptionText)
         setRawOutput(payload.rawOutput || '')
-        setPreviewView('table')
+        const hasSheets = restoredSheets.length > 0
+        const preview = payload.previewMode || (hasSheets ? 'table' : 'text')
+        setPreviewView(hasSheets && preview !== 'text' ? 'table' : 'desc')
       } else if (!snap.success) {
         setQueryResult(null)
         setSheetData([])
@@ -723,7 +730,9 @@ export default function App() {
               ) : (
                 [...historyItems].reverse().map((item) => {
                   const isActive = activeSnapshotId === item.id
-                  const vendorMeta = vendorTagMeta(item.vendor === 'wind' ? 'wind' : 'mx')
+                  const vendorMeta = vendorTagMeta(
+                    item.vendor === 'tushare' ? 'tushare' : item.vendor === 'wind' ? 'wind' : 'mx'
+                  )
                   return (
                     <motion.button
                       key={item.id}
@@ -1186,7 +1195,8 @@ export default function App() {
                   <div className="flex gap-2 mt-2">
                     {[
                       { id: 'mx', label: '妙想 EM' },
-                      { id: 'wind', label: '万得 Wind' }
+                      { id: 'wind', label: '万得 Wind' },
+                      { id: 'tushare', label: 'Tushare' }
                     ].map((p) => (
                       <button
                         key={p.id}

@@ -1,0 +1,20 @@
+{
+  "id": "wind_bull_bear_case",
+  "name": "bull_bear_case_builder_skill",
+  "title": "多空论证",
+  "description": "看多看空逻辑论证。Agent 工作流 Skill（SKILL.md 驱动），Web 端返回使用指引。",
+  "placeholder": "例如: 多空论证相关分析",
+  "icon": "Puzzle",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": [
+    "--query",
+    "{query}"
+  ],
+  "executionMode": "agent",
+  "marketCategory": "金融技能"
+}

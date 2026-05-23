@@ -1,18 +1,20 @@
 """
 万得 Wind Alice Agent 共享适配层（Aeolus）。
 
-通过内嵌的 skills/wind-alice-runtime 调用 Alice，将流式分析结果写入描述文件供前端展示。
+通过内嵌的 skills/wind-alice-runtime 调用 Alice，将流式分析结果写入描述文件；
+若 Alice 返回可下载附件（xlsx/md 等），下载到同目录供前端预览。
 """
 
 from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import sys
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Tuple
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ALICE_ROOT = REPO_ROOT / "skills" / "wind-alice-runtime"
@@ -20,6 +22,9 @@ ALICE_CLI = ALICE_ROOT / "scripts" / "wind-alice.mjs"
 
 WIND_API_KEY = (os.environ.get("WIND_API_KEY") or "").strip()
 DEFAULT_TIMEOUT_SEC = int(os.environ.get("WIND_ALICE_TIMEOUT_SEC") or "1800")
+
+AGENT_VALUE_PREFIX = "agentResult.value:"
+FILE_SAVED_RE = re.compile(r"已保存[：:]\s*(.+?)\s*$")
 
 
 def _require_wind_key() -> None:
@@ -41,6 +46,46 @@ def _require_wind_key() -> None:
 
 def _default_output_dir(subdir: str) -> Path:
     return Path.cwd() / "miaoxiang" / subdir
+
+
+def _extract_alice_text(stdout: str) -> str:
+    chunks: List[str] = []
+    for line in (stdout or "").splitlines():
+        if line.startswith(AGENT_VALUE_PREFIX):
+            chunks.append(line[len(AGENT_VALUE_PREFIX) :].strip())
+    if chunks:
+        return "\n\n".join(chunks).strip()
+    trimmed = (stdout or "").strip()
+    if trimmed and not trimmed.startswith("status:") and "headers:" not in trimmed[:200]:
+        return trimmed
+    return ""
+
+
+def _extract_downloaded_files(stderr: str) -> List[Path]:
+    found: List[Path] = []
+    seen = set()
+    for line in (stderr or "").splitlines():
+        m = FILE_SAVED_RE.search(line.strip())
+        if not m:
+            continue
+        raw = m.group(1).strip().strip('"').strip("'")
+        if not raw:
+            continue
+        p = Path(raw)
+        key = str(p.resolve()) if p.exists() else raw
+        if key in seen:
+            continue
+        seen.add(key)
+        if p.is_file():
+            found.append(p)
+    return found
+
+
+def _split_body_and_attachments(text: str, files: List[Path]) -> Tuple[str, List[Path]]:
+    body = (text or "").strip()
+    if not body and files:
+        return "", files
+    return body, files
 
 
 def run_alice(
@@ -74,7 +119,7 @@ def run_alice(
 
     proc = subprocess.run(
         cmd,
-        cwd=str(ALICE_ROOT),
+        cwd=str(out_dir),
         env=env,
         capture_output=True,
         text=True,
@@ -85,30 +130,42 @@ def run_alice(
 
     stdout = (proc.stdout or "").strip()
     stderr = (proc.stderr or "").strip()
+
     if proc.returncode != 0:
         msg = stdout or stderr or f"wind-alice 退出码 {proc.returncode}"
         raise RuntimeError(msg)
 
-    body = stdout
-    if stderr:
-        body = f"{body}\n\n--- stderr ---\n{stderr}".strip() if body else stderr
+    body_text = _extract_alice_text(stdout)
+    attachment_files = _extract_downloaded_files(stderr)
+    body_text, attachment_files = _split_body_and_attachments(body_text, attachment_files)
 
     suffix = uuid.uuid4().hex[:8]
     desc_path = out_dir / f"{output_subdir}_{suffix}_description.txt"
+
     lines = [
         f"万得 Wind · {skill_label}",
         "=" * 40,
         f"Alice Skill: {alice_skill}",
         f"查询内容: {q}",
-        f"描述文件: {desc_path}",
         "",
-        "数据与分析来源于万得 Alice Agent",
-        "",
-        "--- 分析结果 ---",
-        "",
-        body or "(Alice 未返回正文，请检查 Skill 名称与网络)",
     ]
+
+    if body_text:
+        lines.extend(["--- 分析结果 ---", "", body_text])
+    elif attachment_files:
+        lines.append("（本次结果以附件文件为主，请查看下方文件预览）")
+    else:
+        lines.append("(Alice 未返回正文，请检查 Skill 名称与网络)")
+
     desc_path.write_text("\n".join(lines), encoding="utf-8")
+
+    print(f"描述: {desc_path}")
+    for fp in attachment_files:
+        print(str(fp.resolve()))
+
+    if stderr:
+        print(f"\n--- stderr ---\n{stderr}", file=sys.stderr)
+
     return desc_path
 
 
@@ -135,13 +192,12 @@ def main_entry(
         sys.exit(1)
 
     try:
-        desc_path = run_alice(
+        run_alice(
             query=query,
             alice_skill=alice_skill,
             skill_label=skill_label,
             output_subdir=output_subdir,
         )
-        print(f"描述: {desc_path}")
     except subprocess.TimeoutExpired:
         print(
             f"错误: Alice 分析超时（>{DEFAULT_TIMEOUT_SEC}s），可设置环境变量 WIND_ALICE_TIMEOUT_SEC 加大限制",

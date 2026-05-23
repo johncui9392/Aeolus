@@ -56,6 +56,12 @@ const API_KEY_PROVIDERS = {
     label: 'Wind API Key（万得）',
     envVar: 'WIND_API_KEY',
     filePath: path.join(PROJECT_ROOT, 'WIND_API_KEY.local')
+  },
+  tushare: {
+    id: 'tushare',
+    label: 'Tushare Token',
+    envVar: 'TUSHARE_TOKEN',
+    filePath: path.join(PROJECT_ROOT, 'TUSHARE_TOKEN.local')
   }
 }
 
@@ -239,7 +245,7 @@ app.post('/api/query', requireAuth, trackUsage, async (req, res) => {
     const snapshotId = insertQuerySnapshot({
       skillId,
       skillName: skill.title,
-      vendor: skill.vendor || (skill.apiKeyProvider === 'wind' ? 'wind' : 'mx'),
+      vendor: skill.vendor || (skill.apiKeyProvider === 'tushare' ? 'tushare' : skill.apiKeyProvider === 'wind' ? 'wind' : 'mx'),
       selectType: selectType || '',
       inputQuery: query,
       success: true,
@@ -288,7 +294,7 @@ app.post('/api/query', requireAuth, trackUsage, async (req, res) => {
     const snapshotId = insertQuerySnapshot({
       skillId,
       skillName: skill.title,
-      vendor: skill.vendor || (skill.apiKeyProvider === 'wind' ? 'wind' : 'mx'),
+      vendor: skill.vendor || (skill.apiKeyProvider === 'tushare' ? 'tushare' : skill.apiKeyProvider === 'wind' ? 'wind' : 'mx'),
       selectType: selectType || '',
       inputQuery: query,
       success: false,

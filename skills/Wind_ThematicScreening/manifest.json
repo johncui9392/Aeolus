@@ -1,0 +1,20 @@
+{
+  "id": "wind_thematic_screening",
+  "name": "Wind_ThematicScreening",
+  "title": "主题选股",
+  "description": "主题选股。基于万得 Alice 云端 Skill，报告篇幅较长。",
+  "placeholder": "例如: 人工智能产业链主题选股",
+  "icon": "FileText",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "apiKeyProvider": "wind",
+  "script": "get_data.py",
+  "argsTemplate": [
+    "--query",
+    "{query}"
+  ],
+  "marketCategory": "万得官方"
+}

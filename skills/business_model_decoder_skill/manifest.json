@@ -1,0 +1,20 @@
+{
+  "id": "wind_business_model",
+  "name": "business_model_decoder_skill",
+  "title": "业务模式拆解",
+  "description": "公司业务模式拆解。Agent 工作流 Skill（SKILL.md 驱动），Web 端返回使用指引。",
+  "placeholder": "例如: 业务模式拆解相关分析",
+  "icon": "Puzzle",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": [
+    "--query",
+    "{query}"
+  ],
+  "executionMode": "agent",
+  "marketCategory": "金融技能"
+}

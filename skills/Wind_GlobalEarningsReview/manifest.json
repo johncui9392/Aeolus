@@ -1,0 +1,20 @@
+{
+  "id": "wind_global_earnings_review",
+  "name": "Wind_GlobalEarningsReview",
+  "title": "全球上市公司财报点评",
+  "description": "全球上市公司财报点评。基于万得 Alice 云端 Skill，报告篇幅较长。",
+  "placeholder": "例如: 贵州茅台 2024年报点评",
+  "icon": "FileText",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "apiKeyProvider": "wind",
+  "script": "get_data.py",
+  "argsTemplate": [
+    "--query",
+    "{query}"
+  ],
+  "marketCategory": "万得官方"
+}

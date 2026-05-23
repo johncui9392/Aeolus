@@ -54,10 +54,11 @@ export function loadSkills() {
         continue
       }
 
-      // vendor: mx=东方财富妙想, wind=万得（供前端分类筛选）
+      // vendor: mx=东方财富妙想, wind=万得, tushare=Tushare Pro
       if (!manifest.vendor) {
-        manifest.vendor =
-          manifest.apiKeyProvider === 'wind' ? 'wind' : 'mx'
+        if (manifest.apiKeyProvider === 'tushare') manifest.vendor = 'tushare'
+        else if (manifest.apiKeyProvider === 'wind') manifest.vendor = 'wind'
+        else manifest.vendor = 'mx'
       }
 
       registry.set(manifest.id, manifest)

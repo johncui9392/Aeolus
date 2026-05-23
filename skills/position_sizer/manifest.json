@@ -1,0 +1,20 @@
+{
+  "id": "wind_position_sizer",
+  "name": "position_sizer",
+  "title": "凯利尺规 - 仓位",
+  "description": "按风险预算计算仓位。Agent 工作流 Skill（SKILL.md 驱动），Web 端返回使用指引。",
+  "placeholder": "例如: 凯利尺规 - 仓位相关分析",
+  "icon": "Puzzle",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": [
+    "--query",
+    "{query}"
+  ],
+  "executionMode": "agent",
+  "marketCategory": "金融技能"
+}

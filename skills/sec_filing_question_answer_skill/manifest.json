@@ -1,0 +1,20 @@
+{
+  "id": "wind_sec_filing_qa",
+  "name": "sec_filing_question_answer_skill",
+  "title": "监管文件答疑",
+  "description": "SEC 监管文件答疑。Agent 工作流 Skill（SKILL.md 驱动），Web 端返回使用指引。",
+  "placeholder": "例如: 监管文件答疑相关分析",
+  "icon": "Puzzle",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": [
+    "--query",
+    "{query}"
+  ],
+  "executionMode": "agent",
+  "marketCategory": "金融技能"
+}

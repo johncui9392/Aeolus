@@ -113,9 +113,9 @@ export async function runPythonScript(scriptPath, args = [], extraEnv = {}) {
 
 // ─── 文件解析工具 ──────────────────────────────────────────────
 
-const WIN_PATH_EXT = /[A-Za-z]:\\(?:[^\s\r\n\\]+\\)*[^\s\r\n\\]+\.(?:xlsx|xls|csv|txt)/gi
-const POSIX_PATH_EXT = /\/(?:[^\s\r\n/]+\/)*[^\s\r\n/]+\.(?:xlsx|xls|csv|txt)/gi
-const REL_PATH_EXT = /\b((?:\.\/)?(?:[\w.-]+[/\\])+[\w.-]+\.(?:xlsx|xls|csv|txt))\b/gi
+const WIN_PATH_EXT = /[A-Za-z]:\\(?:[^\s\r\n\\]+\\)*[^\s\r\n\\]+\.(?:xlsx|xls|csv|txt|md|markdown)/gi
+const POSIX_PATH_EXT = /\/(?:[^\s\r\n/]+\/)*[^\s\r\n/]+\.(?:xlsx|xls|csv|txt|md|markdown)/gi
+const REL_PATH_EXT = /\b((?:\.\/)?(?:[\w.-]+[/\\])+[\w.-]+\.(?:xlsx|xls|csv|txt|md|markdown))\b/gi
 
 function maskRanges(str, ranges) {
   let s = str
@@ -177,9 +177,14 @@ function extractFilePaths(stdout) {
   }
 
   for (const full of ordered) {
-    if (full.toLowerCase().endsWith('.txt')) {
+    const lower = full.toLowerCase()
+    if (lower.endsWith('_description.txt') || (lower.endsWith('.txt') && !descFile)) {
       descFile = full
-    } else {
+    } else if (lower.endsWith('.md') || lower.endsWith('.markdown')) {
+      dataFiles.push(full)
+    } else if (lower.endsWith('.txt') && !lower.endsWith('_description.txt')) {
+      dataFiles.push(full)
+    } else if (!lower.endsWith('.txt')) {
       dataFiles.push(full)
     }
   }
@@ -232,6 +237,9 @@ export function parseOutputToJson(stdout) {
   let fileType = 'text'
   let fileName = ''
 
+  let markdownFile = ''
+  let previewMode = 'text'
+
   for (const fp of dataFiles) {
     if (!fs.existsSync(fp)) continue
     const ext = path.extname(fp).toLowerCase()
@@ -240,9 +248,15 @@ export function parseOutputToJson(stdout) {
       if (ext === '.xlsx' || ext === '.xls') {
         sheets = xlsxToSheets(fp)
         fileType = 'xlsx'
+        previewMode = 'table'
       } else if (ext === '.csv') {
         sheets = csvToSheets(fp)
         fileType = 'csv'
+        previewMode = 'table'
+      } else if (ext === '.md' || ext === '.markdown') {
+        markdownFile = fp
+        fileType = 'markdown'
+        previewMode = 'file'
       }
     } catch (e) {
       console.error(`[pythonRunner] 解析文件失败 ${fp}:`, e.message)
@@ -254,7 +268,28 @@ export function parseOutputToJson(stdout) {
     try { description = fs.readFileSync(descFile, 'utf-8') } catch { /* ignore */ }
   }
 
-  return { sheets, fileType, fileName, description, rawOutput: stdout }
+  if (markdownFile && fs.existsSync(markdownFile)) {
+    try {
+      const mdBody = fs.readFileSync(markdownFile, 'utf-8')
+      if (!description) {
+        description = mdBody
+      } else {
+        description = `${description}\n\n--- 附件预览 ---\n\n${mdBody}`
+      }
+      fileType = 'markdown'
+      fileName = path.basename(markdownFile)
+      previewMode = sheets.length ? 'table' : 'file'
+    } catch { /* ignore */ }
+  }
+
+  if (sheets.length > 0) {
+    previewMode = description ? 'table' : 'table'
+  } else if (description && previewMode !== 'file') {
+    previewMode = 'text'
+    if (!fileType || fileType === 'text') fileType = 'markdown'
+  }
+
+  return { sheets, fileType, fileName, description, previewMode, rawOutput: stdout }
 }
 
 /**

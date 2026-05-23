@@ -1,0 +1,20 @@
+{
+  "id": "wind_backtest_expert",
+  "name": "backtest_expert",
+  "title": "战略级投资利器-回测",
+  "description": "量化策略系统化回测。Agent 工作流 Skill（SKILL.md 驱动），Web 端返回使用指引。",
+  "placeholder": "例如: 战略级投资利器-回测相关分析",
+  "icon": "Puzzle",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": [
+    "--query",
+    "{query}"
+  ],
+  "executionMode": "agent",
+  "marketCategory": "金融技能"
+}

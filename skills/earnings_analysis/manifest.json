@@ -1,0 +1,20 @@
+{
+  "id": "wind_earnings_analysis",
+  "name": "earnings_analysis",
+  "title": "财报解读",
+  "description": "撰写机构级财报更新报告。Agent 工作流 Skill（SKILL.md 驱动），Web 端返回使用指引。",
+  "placeholder": "例如: 财报解读相关分析",
+  "icon": "Puzzle",
+  "category": "market",
+  "vendor": "wind",
+  "tier": "free",
+  "needsSelectType": false,
+  "selectOptions": [],
+  "script": "get_data.py",
+  "argsTemplate": [
+    "--query",
+    "{query}"
+  ],
+  "executionMode": "agent",
+  "marketCategory": "金融技能"
+}
