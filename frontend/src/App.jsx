@@ -13,16 +13,39 @@ import { useAuth } from './hooks/useAuth.js'
 // ─── 配置 ───────────────────────────────────────────────────────────────────
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
-const THEME_KEY = 'aeolus_theme'
+const THEME_KEY = 'aeolus_theme_v2'
+const LEGACY_THEME_KEY = 'aeolus_theme'
 const SKILL_VENDOR_KEY = 'aeolus_skill_vendor'
 const HISTORY_LIST_LIMIT = 50
+const DEFAULT_THEME = 'palette-light'
+const VALID_THEME_IDS = new Set(['palette-light', 'palette-05'])
+
+function readStoredTheme() {
+  try {
+    const stored = localStorage.getItem(THEME_KEY)
+    if (stored && VALID_THEME_IDS.has(stored)) return stored
+    // 旧版默认是深色 palette-05；升级后以风清为默认，不再沿用旧缓存
+    if (localStorage.getItem(LEGACY_THEME_KEY)) {
+      localStorage.removeItem(LEGACY_THEME_KEY)
+    }
+    return DEFAULT_THEME
+  } catch {
+    return DEFAULT_THEME
+  }
+}
+
+function writeStoredTheme(themeId) {
+  try {
+    localStorage.setItem(THEME_KEY, themeId)
+  } catch { /* ignore */ }
+}
 
 /** 技能来源分类（插件商店顶部 Tag 筛选） */
 const SKILL_VENDOR_TAGS = [
   { id: 'all', label: '全部' },
-  { id: 'mx', label: '东方财富', shortLabel: '妙想', color: 'bg-amber-500/15 text-amber-200 border-amber-400/40' },
-  { id: 'wind', label: 'Wind 万得', shortLabel: '万得', color: 'bg-sky-500/15 text-sky-200 border-sky-400/40' },
-  { id: 'tushare', label: 'Tushare', shortLabel: 'Tushare', color: 'bg-emerald-500/15 text-emerald-200 border-emerald-400/40' }
+  { id: 'mx', label: '东方财富', shortLabel: '妙想', color: 'bg-amber-500/10 text-amber-700 border-amber-300/50' },
+  { id: 'wind', label: 'Wind 万得', shortLabel: '万得', color: 'bg-sky-500/10 text-sky-700 border-sky-300/50' },
+  { id: 'tushare', label: 'Tushare', shortLabel: 'Tushare', color: 'bg-emerald-500/10 text-emerald-700 border-emerald-300/50' }
 ]
 
 function getSkillVendor(skill) {
@@ -44,8 +67,8 @@ function normalizeHistoryByCreatedAt(items) {
 }
 
 const THEME_OPTIONS = [
-  { id: 'palette-05', name: '紫靛赛博', desc: '深紫底 + 靛蓝高亮', swatch: 'from-indigo-400 to-cyan-400' },
-  { id: 'palette-01', name: '蓝绿科技', desc: '深色背景 + 蓝绿高亮', swatch: 'from-cyan-300 to-cyan-500' }
+  { id: 'palette-light', name: '风清', desc: '浅色商务 · 默认', swatch: 'from-sky-400 to-cyan-500' },
+  { id: 'palette-05', name: '紫靛', desc: '深紫底 + 靛蓝高亮', swatch: 'from-indigo-400 to-cyan-400' }
 ]
 
 // icon 名称 → 组件映射（manifest 中以字符串声明）
@@ -347,7 +370,7 @@ export default function App() {
     }
   })
   const [selectedSkill, setSelectedSkill] = useState(null)
-  const [skillsPanelOpen, setSkillsPanelOpen] = useState(false)
+  const [skillsPanelOpen, setSkillsPanelOpen] = useState(true)
 
   const filteredSkills = useMemo(() => {
     if (skillVendorFilter === 'all') return skills
@@ -382,9 +405,7 @@ export default function App() {
   }, [])
 
   // ── UI 状态
-  const [themeId, setThemeId] = useState(() => {
-    try { return localStorage.getItem(THEME_KEY) || 'palette-05' } catch { return 'palette-05' }
-  })
+  const [themeId, setThemeId] = useState(readStoredTheme)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false)
   const [ribbonPieces, setRibbonPieces] = useState([])
@@ -404,9 +425,9 @@ export default function App() {
 
   // ── 主题同步
   useEffect(() => {
-    const t = THEME_OPTIONS.find((o) => o.id === themeId) ? themeId : 'palette-05'
+    const t = THEME_OPTIONS.find((o) => o.id === themeId) ? themeId : DEFAULT_THEME
     document.documentElement.setAttribute('data-theme', t)
-    try { localStorage.setItem(THEME_KEY, t) } catch { /* ignore */ }
+    writeStoredTheme(t)
   }, [themeId])
 
   // ── 从 /api/skills 加载技能插件商店
@@ -705,7 +726,7 @@ export default function App() {
           >
             Aeolus
           </h1>
-          <p className="text-[12px] text-on-surface-variant mt-1.5 font-medium">金融 Skill 平台</p>
+          <p className="text-[12px] text-on-surface-variant mt-1.5 font-medium">金融 Skill 工作台</p>
         </div>
 
         <nav className="flex-1 flex flex-col min-h-0 px-4 mt-2">
@@ -775,7 +796,7 @@ export default function App() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                className="absolute bottom-[78px] left-4 right-4 z-20 p-4 rounded-[20px] border border-outline-variant/30 bg-surface-container-high shadow-[0_8px_30px_rgb(0,0,0,0.4)]"
+                className="absolute bottom-[78px] left-4 right-4 z-20 p-4 rounded-[20px] border border-outline-variant/30 bg-surface-container-high shadow-[var(--menu-elevated-shadow,0_8px_30px_rgb(0,0,0,0.4))]"
               >
                 <div className="text-xs font-bold text-on-surface-variant mb-3 px-1">主题配色</div>
                 <div className="space-y-2">
@@ -821,7 +842,7 @@ export default function App() {
       <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden bg-background">
         <div className="flex-1 flex flex-col min-h-0 p-4 gap-3 overflow-hidden max-w-6xl mx-auto w-full">
 
-          {/* 顶部工具条：默认收起技能列表，问句单行；结果区占满剩余高度 */}
+          {/* 顶部工具条：默认展开技能广场，问句单行；结果区占满剩余高度 */}
           <div className="shrink-0 w-full">
             <div className="bg-surface-container-low px-3 py-2.5 rounded-2xl border border-outline-variant/30 shadow-sm flex flex-col gap-2">
 
@@ -837,27 +858,25 @@ export default function App() {
                 </div>
               ) : (
                 <>
-                  <div className="flex flex-wrap items-center gap-1.5">
+                  <motion.div className="flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setSkillsPanelOpen((v) => !v)}
-                      className="inline-flex items-center gap-1.5 max-w-[min(100%,280px)] px-2.5 py-1.5 rounded-xl border border-outline-variant/40 bg-surface hover:bg-surface-variant/40 text-left transition-colors"
+                      aria-expanded={skillsPanelOpen}
+                      className="inline-flex items-center gap-2 min-w-[148px] max-w-[min(100%,320px)] px-2.5 py-1.5 rounded-xl border border-outline-variant/40 bg-surface hover:bg-surface-variant/40 text-left transition-colors"
                     >
-                      {selectedSkill ? (
-                        <>
-                          {(() => {
-                            const Icon = ICON_MAP[selectedSkill.icon] || Puzzle
-                            return <Icon className="w-4 h-4 shrink-0 text-primary" />
-                          })()}
-                          <span className="text-xs font-semibold text-on-surface truncate">{selectedSkill.title}</span>
-                          <span className={`text-[9px] font-bold px-1 py-0.5 rounded border shrink-0 ${vendorTagMeta(getSkillVendor(selectedSkill)).color}`}>
-                            {vendorTagMeta(getSkillVendor(selectedSkill)).shortLabel}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="text-xs text-on-surface-variant">选择技能</span>
-                      )}
-                      <motion.div animate={{ rotate: skillsPanelOpen ? 180 : 0 }} className="shrink-0 ml-auto">
+                      <Store className="w-4 h-4 shrink-0 text-primary" />
+                      <div className="min-w-0 flex-1">
+                        <span className="block text-xs font-bold text-on-surface leading-tight">技能广场</span>
+                        <span className="block text-[10px] text-on-surface-variant truncate leading-tight mt-0.5">
+                          {selectedSkill
+                            ? `已选：${selectedSkill.title}`
+                            : skillsPanelOpen
+                              ? '请在下方列表选择技能'
+                              : '点击展开技能列表'}
+                        </span>
+                      </div>
+                      <motion.div animate={{ rotate: skillsPanelOpen ? 180 : 0 }} className="shrink-0">
                         <ChevronDown className="w-4 h-4 text-on-surface-variant" />
                       </motion.div>
                     </button>
@@ -886,7 +905,7 @@ export default function App() {
                         </button>
                       )
                     })}
-                  </div>
+                  </motion.div>
 
                   <AnimatePresence initial={false}>
                     {skillsPanelOpen && (
@@ -897,7 +916,11 @@ export default function App() {
                         transition={{ duration: 0.2 }}
                         className="overflow-hidden"
                       >
-                        <div className="max-h-[min(200px,28vh)] overflow-y-auto custom-scrollbar rounded-xl border border-outline-variant/20 bg-surface/30 p-2">
+                        <div className="flex items-center justify-between px-1 pb-1.5">
+                          <span className="text-[11px] font-bold text-on-surface-variant tracking-wide">技能列表</span>
+                          <span className="text-[10px] text-on-surface-variant">{filteredSkills.length} 个可用</span>
+                        </div>
+                        <motion.div className="max-h-[min(200px,28vh)] overflow-y-auto custom-scrollbar rounded-xl border border-outline-variant/20 bg-surface/30 p-2">
                           {filteredSkills.length === 0 ? (
                             <p className="text-xs text-on-surface-variant py-2 px-1">该分类下暂无技能</p>
                           ) : (
@@ -932,7 +955,7 @@ export default function App() {
                               })}
                             </div>
                           )}
-                        </div>
+                        </motion.div>
                       </motion.div>
                     )}
                   </AnimatePresence>

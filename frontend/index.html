@@ -1,13 +1,26 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="palette-light">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function () {
+        var key = 'aeolus_theme_v2'
+        var fallback = 'palette-light'
+        var valid = { 'palette-light': 1, 'palette-05': 1 }
+        try {
+          var t = localStorage.getItem(key)
+          document.documentElement.setAttribute('data-theme', valid[t] ? t : fallback)
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', fallback)
+        }
+      })()
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Aeolus - 金融 Skill 平台</title>
+    <title>Aeolus · 风清 — 金融 Skill 工作台</title>
   </head>
   <body>
     <div id="root"></div>
